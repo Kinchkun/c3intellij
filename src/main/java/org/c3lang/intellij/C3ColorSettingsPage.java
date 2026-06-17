@@ -61,6 +61,7 @@ public class C3ColorSettingsPage implements ColorSettingsPage
         new AttributesDescriptor("Comments//Line comment", C3SyntaxHighlighter.LINE_COMMENT_KEY),
         new AttributesDescriptor("Comments//Block comment", C3SyntaxHighlighter.BLOCK_COMMENT_KEY),
         new AttributesDescriptor("Comments//Documentation comment", C3SyntaxHighlighter.DOC_COMMENT_KEY),
+        new AttributesDescriptor("Comments//Documentation comment//Markdown heading", org.c3lang.intellij.annotation.Highlights.DOC_MARKDOWN_HEADING),
         new AttributesDescriptor("Strings//Escape sequence", C3SyntaxHighlighter.ESCAPE_SEQ_KEY),
         new AttributesDescriptor("Strings//Invalid escape sequence", C3SyntaxHighlighter.INVALID_ESCAPE_SEQ_KEY),
     };

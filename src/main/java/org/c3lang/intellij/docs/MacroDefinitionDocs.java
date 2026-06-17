@@ -57,8 +57,8 @@ public final class MacroDefinitionDocs
         {
             DocumentationUtils.appendDefinition("macro " + type + " " + name + argsString, project, builder);
         }
+        DocumentationUtils.appendDescription(docs, project, builder);
         builder.append(DocumentationMarkup.SECTIONS_START);
-        builder.append(DocumentationUtils.extractDescriptionTextFromDoc(docs)).append('\n');
         DocumentationUtils.appendParamsSection(docs, builder, args);
         DocumentationUtils.appendReturnSection(docs, builder);
         DocumentationUtils.appendFileSection(file, builder);

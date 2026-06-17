@@ -1,6 +1,7 @@
 package org.c3lang.intellij.docs;
 
 import com.intellij.lang.documentation.DocumentationMarkup;
+import com.intellij.markdown.utils.doc.DocMarkdownToHtmlConverter;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
@@ -198,25 +199,88 @@ public final class DocumentationUtils
         return "";
     }
 
+    /**
+     * Appends the rendered description of a doc comment to {@code builder}.
+     *
+     * <p>The free-text part of the comment (everything that is not a {@code @param} /
+     * {@code @return} / ... contract line) is treated as Markdown and converted to HTML.
+     * Fenced code blocks are syntax highlighted; a {@code ```c3} block — or a bare
+     * {@code ```} block, which falls back to the default language — is highlighted as C3.</p>
+     */
+    static void appendDescription(@NotNull String docComment, @NotNull Project project, @NotNull StringBuilder builder)
+    {
+        String markdown = extractDescriptionTextFromDoc(docComment);
+        if (markdown.isBlank()) return;
+        builder.append(DocumentationMarkup.CONTENT_START);
+        builder.append(DocMarkdownToHtmlConverter.convert(project, markdown, C3Language.INSTANCE));
+        builder.append(DocumentationMarkup.CONTENT_END);
+    }
+
+    /**
+     * Extracts the free-text (Markdown) part of a doc comment, preserving line order, blank
+     * lines and relative indentation so that Markdown structure (paragraphs, lists, fenced
+     * code) survives. Contract lines ({@code @param}, {@code @return}, ...) are dropped since
+     * they are rendered in their own sections, but {@code @}-prefixed lines inside a fenced
+     * code block are kept verbatim.
+     */
     static @NotNull String extractDescriptionTextFromDoc(@NotNull String docComment)
     {
-        List<String> description = new ArrayList<>();
-        for (String line : docComment.split("\n"))
+        List<String> kept = new ArrayList<>();
+        boolean inFence = false;
+        for (String line : docComment.split("\n", -1))
         {
             String trimmed = line.trim();
-            if (trimmed.isEmpty()) continue;
-            if (!trimmed.startsWith("@"))
+            if (trimmed.startsWith("```") || trimmed.startsWith("~~~"))
             {
-                description.add(trimmed);
+                inFence = !inFence;
+                kept.add(stripTrailing(line));
+                continue;
             }
+            // Contract annotations are rendered separately; skip them unless inside a code fence.
+            if (!inFence && trimmed.startsWith("@")) continue;
+            kept.add(stripTrailing(line));
         }
 
-        StringBuilder descriptionBuilder = new StringBuilder();
-        for (int i = description.size() - 1; i >= 0; i--)
+        // Drop blank lines at the edges so the rendered block has no leading/trailing gap.
+        int start = 0;
+        int end = kept.size();
+        while (start < end && kept.get(start).isBlank()) start++;
+        while (end > start && kept.get(end - 1).isBlank()) end--;
+        if (start >= end) return "";
+
+        // Strip the common leading indentation shared by every non-blank line (doc comments
+        // are typically indented inside `<* ... *>`), which would otherwise be read as a
+        // Markdown indented code block.
+        int indent = Integer.MAX_VALUE;
+        for (int i = start; i < end; i++)
         {
-            descriptionBuilder.append(description.get(i)).append('\n');
+            String line = kept.get(i);
+            if (line.isBlank()) continue;
+            indent = Math.min(indent, leadingWhitespace(line));
         }
-        return descriptionBuilder.toString();
+        if (indent == Integer.MAX_VALUE) indent = 0;
+
+        StringBuilder builder = new StringBuilder();
+        for (int i = start; i < end; i++)
+        {
+            String line = kept.get(i);
+            builder.append(line.length() >= indent ? line.substring(indent) : line).append('\n');
+        }
+        return builder.toString();
+    }
+
+    private static int leadingWhitespace(@NotNull String line)
+    {
+        int i = 0;
+        while (i < line.length() && (line.charAt(i) == ' ' || line.charAt(i) == '\t')) i++;
+        return i;
+    }
+
+    private static @NotNull String stripTrailing(@NotNull String line)
+    {
+        int end = line.length();
+        while (end > 0 && Character.isWhitespace(line.charAt(end - 1))) end--;
+        return line.substring(0, end);
     }
 
     private static @NotNull String valueOrEmpty(String value)

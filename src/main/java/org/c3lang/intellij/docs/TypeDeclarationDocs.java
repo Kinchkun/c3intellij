@@ -56,13 +56,9 @@ public final class TypeDeclarationDocs
 
         StringBuilder builder = new StringBuilder();
         DocumentationUtils.appendDefinition(signature, element.getProject(), builder);
+        DocumentationUtils.appendDescription(docs, element.getProject(), builder);
         builder.append(DocumentationMarkup.SECTIONS_START);
 
-        String description = DocumentationUtils.extractDescriptionTextFromDoc(docs);
-        if (!description.isBlank())
-        {
-            builder.append(description).append('\n');
-        }
         if (extraSection != null)
         {
             builder.append(extraSection);

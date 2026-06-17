@@ -9,6 +9,7 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiWhiteSpace;
+import org.c3lang.intellij.C3ParserDefinition;
 import org.c3lang.intellij.C3SyntaxHighlighter;
 import org.c3lang.intellij.psi.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
@@ -25,6 +26,12 @@ public final class DocCommentAnnotator
 	{
 	}
 
+	/** Matches an ATX Markdown heading line, e.g. {@code # Title} or {@code ### Sub}. */
+	private static final Pattern HEADING_PATTERN = Pattern.compile("^\\s*#{1,6}\\s+\\S.*$");
+
+	/** Matches a fenced code block delimiter, capturing the (optional) info string / language. */
+	private static final Pattern FENCE_PATTERN = Pattern.compile("^\\s*(?:```+|~~~+)\\s*([\\w+.#-]*)\\s*$");
+
 	public static void annotateDocComment(PsiComment element, AnnotationHolder holder)
 	{
 		annotateContractExpressions(element, holder);
@@ -33,6 +40,106 @@ public final class DocCommentAnnotator
 		annotateReturnTags(element, holder);
 		annotateDeprecatedTags(element, holder);
 		annotateStrings(element, holder);
+		annotateMarkdown(element, holder);
+	}
+
+	/**
+	 * Highlights Markdown inside a doc comment: ATX headings ({@code # Title}) and fenced code
+	 * blocks. A {@code ```c3} (or unlabelled {@code ```}) block has its content highlighted as C3.
+	 *
+	 * <p>A doc comment is lexed into a run of adjacent {@code DOC_COMMENT} leaf tokens, so a
+	 * multi-line fence spans several elements. We reconstruct the whole comment to track fence
+	 * state, then clamp every highlight to the element currently being annotated — the platform
+	 * requires annotation ranges to lie within that element.</p>
+	 */
+	private static void annotateMarkdown(PsiComment element, AnnotationHolder holder)
+	{
+		PsiElement first = element;
+		for (PsiElement prev = first.getPrevSibling(); isDocComment(prev); prev = first.getPrevSibling())
+		{
+			first = prev;
+		}
+
+		StringBuilder full = new StringBuilder();
+		for (PsiElement p = first; isDocComment(p); p = p.getNextSibling())
+		{
+			full.append(p.getText());
+		}
+
+		int fullStart = first.getTextRange().getStartOffset();
+		int elemStart = element.getTextRange().getStartOffset();
+		int elemEnd = element.getTextRange().getEndOffset();
+		String text = full.toString();
+
+		C3SyntaxHighlighter highlighter = new C3SyntaxHighlighter();
+		boolean inFence = false;
+		boolean fenceIsC3 = false;
+
+		int pos = 0;
+		while (pos <= text.length())
+		{
+			int newline = text.indexOf('\n', pos);
+			int lineEnd = newline < 0 ? text.length() : newline;
+			String line = text.substring(pos, lineEnd);
+			int lineStart = fullStart + pos;
+
+			Matcher fence = FENCE_PATTERN.matcher(line);
+			if (fence.matches())
+			{
+				// The ``` / ~~~ delimiter lines are left in the plain comment style (no extra
+				// styling) — only the fenced content gets highlighted.
+				inFence = !inFence;
+				fenceIsC3 = inFence && (fence.group(1).isEmpty() || fence.group(1).equalsIgnoreCase("c3"));
+			}
+			else if (inFence)
+			{
+				if (fenceIsC3)
+				{
+					highlightAsC3(highlighter, line, lineStart, holder, elemStart, elemEnd);
+				}
+			}
+			else if (HEADING_PATTERN.matcher(line).matches())
+			{
+				markClamped(holder, lineStart, lineStart + line.length(),
+					Highlights.DOC_MARKDOWN_HEADING, elemStart, elemEnd);
+			}
+
+			if (newline < 0) break;
+			pos = newline + 1;
+		}
+	}
+
+	private static void highlightAsC3(
+		C3SyntaxHighlighter highlighter, String code, int codeStart,
+		AnnotationHolder holder, int min, int max)
+	{
+		Lexer lexer = highlighter.getHighlightingLexer();
+		lexer.start(code);
+		while (lexer.getTokenType() != null)
+		{
+			TextAttributesKey[] keys = highlighter.getTokenHighlights(lexer.getTokenType());
+			if (keys.length > 0)
+			{
+				markClamped(holder, codeStart + lexer.getTokenStart(), codeStart + lexer.getTokenEnd(),
+					keys[0], min, max);
+			}
+			lexer.advance();
+		}
+	}
+
+	/** Marks {@code [start, end)} clamped to {@code [min, max)} so it stays within the annotated element. */
+	private static void markClamped(AnnotationHolder holder, int start, int end, TextAttributesKey key, int min, int max)
+	{
+		int s = Math.max(start, min);
+		int e = Math.min(end, max);
+		if (s < e) mark(holder, s, e, key);
+	}
+
+	private static boolean isDocComment(@Nullable PsiElement element)
+	{
+		return element != null
+			&& element.getNode() != null
+			&& element.getNode().getElementType() == C3ParserDefinition.DOC_COMMENT;
 	}
 
 	/**

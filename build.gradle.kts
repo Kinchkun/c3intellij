@@ -41,7 +41,7 @@ dependencies {
         local(
             providers.gradleProperty("clionPath")
                 .orElse(providers.environmentVariable("CLION_PATH"))
-                .orElse("/Users/tbr/Applications/CLion.app")
+                .orElse("/Users/kinch/Applications/CLion.app")
         )
         // Native Debugging Support (LLDB/CIDR). Used only by the optional, CLion-gated
         // debugger integration (see cidrdebugger.xml); the base plugin stays compatible
