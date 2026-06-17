@@ -45,6 +45,8 @@ public class C3ColorSettingsPage implements ColorSettingsPage
         new AttributesDescriptor("Braces and Operators//Comma", C3SyntaxHighlighter.COMMA_KEY),
         new AttributesDescriptor("Braces and Operators//Dot", C3SyntaxHighlighter.DOT_KEY),
         new AttributesDescriptor("Braces and Operators//Parentheses", C3SyntaxHighlighter.PARENTHESES_KEY),
+        new AttributesDescriptor("Braces and Operators//Operator", C3SyntaxHighlighter.OPERATOR_KEY),
+        new AttributesDescriptor("Braces and Operators//Semicolon", C3SyntaxHighlighter.EOS_KEY),
         new AttributesDescriptor("Type definition", C3SyntaxHighlighter.TYPE_DEFINITION_KEY),
         new AttributesDescriptor("Type definition//Enum", C3SyntaxHighlighter.ENUM_NAME_KEY),
         new AttributesDescriptor("Type definition//Struct", C3SyntaxHighlighter.STRUCT_NAME_KEY),
@@ -52,6 +54,15 @@ public class C3ColorSettingsPage implements ColorSettingsPage
         new AttributesDescriptor("Type definition//Fault", C3SyntaxHighlighter.FAULT_NAME_KEY),
         new AttributesDescriptor("Type definition//Bitstruct", C3SyntaxHighlighter.BITSTRUCT_NAME_KEY),
         new AttributesDescriptor("Type definition//Typedef", C3SyntaxHighlighter.TYPEDEF_NAME_KEY),
+        new AttributesDescriptor("Type definition//Type alias", C3SyntaxHighlighter.ALIAS_TYPE_NAME_KEY),
+        new AttributesDescriptor("Type definition//Attribute definition", C3SyntaxHighlighter.ATTRDEF_ATTRIBUTE_KEY),
+        new AttributesDescriptor("Alias name", C3SyntaxHighlighter.ALIAS_NAME_KEY),
+        new AttributesDescriptor("Bytes", C3SyntaxHighlighter.BYTES_KEY),
+        new AttributesDescriptor("Comments//Line comment", C3SyntaxHighlighter.LINE_COMMENT_KEY),
+        new AttributesDescriptor("Comments//Block comment", C3SyntaxHighlighter.BLOCK_COMMENT_KEY),
+        new AttributesDescriptor("Comments//Documentation comment", C3SyntaxHighlighter.DOC_COMMENT_KEY),
+        new AttributesDescriptor("Strings//Escape sequence", C3SyntaxHighlighter.ESCAPE_SEQ_KEY),
+        new AttributesDescriptor("Strings//Invalid escape sequence", C3SyntaxHighlighter.INVALID_ESCAPE_SEQ_KEY),
     };
 
 

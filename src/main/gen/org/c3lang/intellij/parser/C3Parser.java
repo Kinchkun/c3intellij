@@ -3313,7 +3313,10 @@ public class C3Parser implements PsiParser, LightPsiParser {
     if (!recursion_guard_(b, l, "generic_parameter")) return false;
     boolean r;
     Marker m = enter_section_(b, l, _NONE_, GENERIC_PARAMETER, "<generic parameter>");
-    r = expr(b, l + 1, -1);
+    // Precedence 2 excludes assignment/ternary, so a declaration body like
+    // `constdef X : inline String { CONTENT_TYPE = "..." }` is not misparsed as
+    // generic arguments `String{...}`. See generic_parameter in C3.bnf.
+    r = expr(b, l + 1, 2);
     if (!r) r = type(b, l + 1);
     exit_section_(b, l, m, r, false, null);
     return r;

@@ -22,12 +22,19 @@ public final class MacroDefinitionDocs
         String type = element.getReturnType() != null ? element.getReturnType().getFullName() : "";
         String docs = DocumentationUtils.findDocumentationComment(element);
         String file = SymbolPresentationUtil.getFilePathPresentation(element.getContainingFile());
-        String argsString = "(" + element.getMacroParams().getText().replaceAll("\\s+", " ").trim() + ")";
-        var parameterList = Objects.requireNonNull(element.getMacroParams().getParameterList());
-        List<String> args = parameterList.getParamDeclList().stream()
-            .map(C3ParamDecl::getParameter)
-            .map(parameter -> Objects.requireNonNull(parameter.getName()))
-            .toList();
+        var macroParams = element.getMacroParams();
+        String argsString = macroParams != null
+            ? "(" + macroParams.getText().replaceAll("\\s+", " ").trim() + ")"
+            : "()";
+        var parameterList = macroParams != null ? macroParams.getParameterList() : null;
+        List<String> args = parameterList != null
+            ? parameterList.getParamDeclList().stream()
+                .map(C3ParamDecl::getParameter)
+                .filter(Objects::nonNull)
+                .map(parameter -> parameter.getName())
+                .filter(Objects::nonNull)
+                .toList()
+            : List.of();
 
         return renderFullDoc(file, name, type, argsString, args, docs, element.getProject());
     }

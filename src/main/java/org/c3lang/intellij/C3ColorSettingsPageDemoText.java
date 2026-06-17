@@ -8,8 +8,15 @@ module stack <Type>;
 
 faultdef FILE_NOT_FOUND, FILE_IS_DIR;
 
-fn void fault_example()\s
+/* A block comment. */
+
+<*
+ Pushes a greeting and reports the first fault.
+ @param msg : "the greeting to print"
+*>
+fn void fault_example(String msg)\s
 {
+    io::printfn("Hello\\t%s\\n", msg);
     return FILE_NOT_FOUND?;
 }
 

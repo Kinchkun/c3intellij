@@ -19,15 +19,22 @@ public final class FuncDefinitionDocs
     public static @NotNull String generateFuncDefDoc(@NotNull C3FuncDef element)
     {
         String name = element.getFqName().getName();
-        String type = Objects.requireNonNull(element.getReturnType()).getFullName();
+        String type = element.getReturnType() != null ? element.getReturnType().getFullName() : "";
         String docs = DocumentationUtils.findDocumentationComment(element.getParent());
         String file = SymbolPresentationUtil.getFilePathPresentation(element.getContainingFile());
-        String argsString = element.getFnParameterList().getText().replaceAll("\\s+", " ").trim();
-        var parameterList = Objects.requireNonNull(element.getFnParameterList().getParameterList());
-        List<String> args = parameterList.getParamDeclList().stream()
-            .map(C3ParamDecl::getParameter)
-            .map(parameter -> Objects.requireNonNull(parameter.getName()))
-            .toList();
+        var fnParameterList = element.getFnParameterList();
+        String argsString = fnParameterList != null
+            ? fnParameterList.getText().replaceAll("\\s+", " ").trim()
+            : "()";
+        var parameterList = fnParameterList != null ? fnParameterList.getParameterList() : null;
+        List<String> args = parameterList != null
+            ? parameterList.getParamDeclList().stream()
+                .map(C3ParamDecl::getParameter)
+                .filter(Objects::nonNull)
+                .map(parameter -> parameter.getName())
+                .filter(Objects::nonNull)
+                .toList()
+            : List.of();
 
         return renderFullDoc(file, name, type, argsString, args, docs, element.getProject());
     }

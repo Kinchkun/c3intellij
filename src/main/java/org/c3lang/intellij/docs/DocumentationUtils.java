@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-final class DocumentationUtils
+public final class DocumentationUtils
 {
     private static final Pattern PARAM_PATTERN = Pattern.compile(
         "@param\\s+((\\[(in|&in|out|&out|inout|&inout)])\\s+)?(\\w+)(\\s*:\\s*(\"((?:[^\"\\\\]|\\\\.)*)\"|`((?:[^`\\\\]|\\\\.)*)`))?"
@@ -31,7 +31,7 @@ final class DocumentationUtils
     {
     }
 
-    static @NotNull String findDocumentationComment(@NotNull PsiElement element)
+    public static @NotNull String findDocumentationComment(@NotNull PsiElement element)
     {
         PsiElement prev = element.getParent() != null
             && element.getParent().getParent() instanceof C3DefaultModuleSection

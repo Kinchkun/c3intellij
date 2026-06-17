@@ -53,6 +53,16 @@ public interface C3TokenSets
             C3Types.SHR_ASSIGN
     );
     TokenSet ASSIGNMENT = TokenSet.orSet(TokenSet.create(C3Types.EQ), OPERATOR_ASSIGN_OPS);
+    TokenSet COMPILE_TIME_OPS = TokenSet.create(C3Types.CT_AND, C3Types.CT_OR, C3Types.CT_PLUS, C3Types.CT_TERNARY);
+    TokenSet OPERATORS = TokenSet.orSet(
+            BINARY_OPS,
+            INC_DEC,
+            BANGQUEST,
+            OTHER_OPERATORS,
+            ASSIGNMENT,
+            COMPILE_TIME_OPS,
+            TokenSet.create(C3Types.IMPLIES)
+    );
     TokenSet TYPES = TokenSet.create(C3Types.KW_ANY,
                                      C3Types.TYPE_IDENT,
                                      C3Types.CT_TYPE_IDENT,
@@ -126,6 +136,8 @@ public interface C3TokenSets
                                            C3Types.KW_CT_ENDSWITCH,
                                            C3Types.KW_CT_ERROR,
                                            C3Types.KW_CT_EVAL,
+                                           C3Types.KW_CT_EXEC,
+                                           C3Types.KW_CT_EXPAND,
                                            C3Types.KW_CT_FEATURE,
                                            C3Types.KW_CT_FOR,
                                            C3Types.KW_CT_FOREACH,
@@ -145,6 +157,7 @@ public interface C3TokenSets
                                         C3Types.KW_CASE,
                                         C3Types.KW_CATCH,
                                         C3Types.KW_CONST,
+                                        C3Types.KW_CONSTDEF,
                                         C3Types.KW_CONTINUE,
                                         C3Types.KW_DEFAULT,
                                         C3Types.KW_DEFER,

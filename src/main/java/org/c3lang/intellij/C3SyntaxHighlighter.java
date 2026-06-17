@@ -60,6 +60,7 @@ public class C3SyntaxHighlighter extends SyntaxHighlighterBase
     public final static TextAttributesKey PARENTHESES_KEY = createTextAttributesKey("C3_PARENTHESES", DefaultLanguageHighlighterColors.PARENTHESES);
     public final static TextAttributesKey IDENTIFIER_KEY = createTextAttributesKey("C3_IDENTIFIER", DefaultLanguageHighlighterColors.IDENTIFIER);
     public final static TextAttributesKey COMMA_KEY = createTextAttributesKey("C3_COMMA", DefaultLanguageHighlighterColors.COMMA);
+    public final static TextAttributesKey OPERATOR_KEY = createTextAttributesKey("C3_OPERATOR", DefaultLanguageHighlighterColors.OPERATION_SIGN);
     public final static TextAttributesKey TYPEDEF_NAME_KEY = createTextAttributesKey("C3_TYPEDEF", TYPE_DEFINITION_KEY);
     public final static TextAttributesKey ALIAS_TYPE_NAME_KEY = createTextAttributesKey("C3_ALIAS_TYPE", TYPEDEF_NAME_KEY);
     public final static TextAttributesKey ATTRDEF_ATTRIBUTE_KEY = createTextAttributesKey("C3_ATTRDEF_ATTRIBUTE", ATTRIBUTE_KEY);
@@ -126,7 +127,12 @@ public class C3SyntaxHighlighter extends SyntaxHighlighterBase
         addMapping(PARENTHESES_KEY, C3TokenSets.PARENTHESES);
         addMapping(IDENTIFIER_KEY, C3TokenSets.IDENTIFIER);
         addMapping(COMMA_KEY, C3Types.COMMA);
+        addMapping(OPERATOR_KEY, C3TokenSets.OPERATORS);
         addMapping(EOS_KEY, C3Types.EOS);
+        // @-identifiers (attribute / macro invocations like @test, @pool, @assert_equals).
+        addMapping(ATTRIBUTE_KEY, C3Types.AT_IDENT, C3Types.AT_TYPE_IDENT);
+        // Compile-time identifiers ($foo, $FOO, $$builtin).
+        addMapping(CT_KEYWORD_KEY, C3Types.CT_IDENT, C3Types.CT_CONST_IDENT, C3Types.BUILTIN);
         addMapping(TYPE_KEY, C3TokenSets.TYPES);
         addMapping(LINE_COMMENT_KEY, C3ParserDefinition.LINE_COMMENT);
         addMapping(BLOCK_COMMENT_KEY, C3ParserDefinition.BLOCK_COMMENT);

@@ -11,6 +11,16 @@ public class C3SyntaxHighlighterLexer extends C3LexerAdapter
 	private IElementType prev = null;
 
 	@Override
+	public void start(@org.jetbrains.annotations.NotNull CharSequence buffer, int startOffset, int endOffset, int initialState)
+	{
+		// The editor highlighter reuses this lexer instance across incremental relexes;
+		// clear the carried-over lookahead state so each (re)start is deterministic.
+		overrideTokenType = null;
+		prev = null;
+		super.start(buffer, startOffset, endOffset, initialState);
+	}
+
+	@Override
 	public void advance()
 	{
 		super.advance();
@@ -36,7 +46,11 @@ public class C3SyntaxHighlighterLexer extends C3LexerAdapter
 	@Override
 	public IElementType getTokenType()
 	{
-		return overrideTokenType != null ? overrideTokenType : super.getTokenType();
+		IElementType base = super.getTokenType();
+		// Never report a token past end-of-stream: doing so makes the editor highlighter
+		// throw "Unexpected termination offset".
+		if (base == null) return null;
+		return overrideTokenType != null ? overrideTokenType : base;
 	}
 
 	public static final C3ElementType CONST_IDENT_FAULT = new C3ElementType("CONST_IDENT_FAULT");

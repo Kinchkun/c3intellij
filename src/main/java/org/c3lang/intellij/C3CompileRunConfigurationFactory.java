@@ -23,7 +23,12 @@ public class C3CompileRunConfigurationFactory extends ConfigurationFactory
 
     @Override public @NotNull @NonNls String getId()
     {
-        return C3CompileRunConfigurationType.ID;
+        return "C3RunConfiguration";
+    }
+
+    @Override public @NotNull String getName()
+    {
+        return "Single File";
     }
 
     @Override public @NotNull RunConfiguration createTemplateConfiguration(@NotNull Project project)

@@ -3,6 +3,7 @@ package org.c3lang.intellij.completion;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiReference;
 import com.intellij.psi.codeStyle.MinusculeMatcher;
 import com.intellij.psi.codeStyle.NameUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -13,6 +14,7 @@ import org.c3lang.intellij.psi.C3CompoundInitExpr;
 import org.c3lang.intellij.psi.C3FullyQualifiedTypeNameProvider;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
+import org.c3lang.intellij.psi.C3Parameter;
 import org.c3lang.intellij.psi.C3PathIdent;
 import org.c3lang.intellij.psi.FullyQualifiedName;
 import org.jetbrains.annotations.NotNull;
@@ -82,6 +84,29 @@ public final class CompletionExtensionsKt
 					.collect(Collectors.joining(", "));
 
 				return new FullyQualifiedName(fqn.getModule(), fqn.getName() + accessPath);
+			}
+		}
+
+		// The receiver root may be a function/macro parameter (e.g. `formatter` in
+		// `Formatter* formatter`) rather than a local declaration. Resolve the path-ident's
+		// reference and, when it points at a parameter, use that parameter's type.
+		if (localDeclAfterType == null && pathIdent != null)
+		{
+			PsiReference reference = pathIdent.getReference();
+			PsiElement resolved = reference != null ? reference.resolve() : null;
+			if (resolved instanceof C3Parameter parameter)
+			{
+				FullyQualifiedName fqn = parameter.findTypeName();
+				if (fqn != null)
+				{
+					C3CallExpr callExpr = PsiTreeUtil.getParentOfType(pathIdent, C3CallExpr.class);
+					var tails = PsiTreeUtil.findChildrenOfType(callExpr, C3CallExprTail.class);
+					String accessPath = tails.stream()
+						.map(PsiElement::getText)
+						.collect(Collectors.joining(", "));
+
+					return new FullyQualifiedName(fqn.getModule(), fqn.getName() + accessPath);
+				}
 			}
 		}
 

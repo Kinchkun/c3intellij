@@ -48,7 +48,9 @@ public class C3Annotator implements Annotator
         annotationHolder.newSilentAnnotation(HighlightSeverity.TEXT_ATTRIBUTES)
                                     .textAttributes(C3SyntaxHighlighter.ALIAS_NAME_KEY).range(element.getAliasName()).create();
         C3AliasDeclarationSource source = element.getAliasDeclarationSource();
-        assert source != null;
+        // An alias being typed is incomplete and has no source yet — skip the source-dependent
+        // checks rather than asserting (the annotator runs constantly on in-progress code).
+        if (source == null) return;
         boolean is_ident = element.getAliasName().getNode().findChildByType(C3Types.IDENT) != null;
         boolean is_at_ident = !is_ident && element.getAliasName().getNode().findChildByType(C3Types.AT_IDENT) != null;
         boolean is_const = !is_at_ident && !is_ident;
@@ -336,5 +338,30 @@ public class C3Annotator implements Annotator
             if (parent == null) return;
             annotationHolder.newSilentAnnotation(HighlightSeverity.TEXT_ATTRIBUTES).textAttributes(colorForTypeDefiniton(parent)).create();
         }
+        else if (psiElement instanceof C3PathIdent pathIdent)
+        {
+            // Free function call (e.g. json::load(...), log::dbg(...)).
+            colorIfCalled(pathIdent, C3SyntaxHighlighter.FUNCTION_KEY, annotationHolder);
+        }
+        else if (psiElement instanceof C3AccessIdent accessIdent)
+        {
+            // Method call (e.g. client.init(...)); plain field access is left untouched.
+            colorIfCalled(accessIdent, C3SyntaxHighlighter.METHOD_KEY, annotationHolder);
+        }
+    }
+
+    private static void colorIfCalled(
+        @NotNull C3NameIdentProvider element, @NotNull TextAttributesKey key, @NotNull AnnotationHolder annotationHolder)
+    {
+        PsiElement nameIdent = element.getNameIdentElement();
+        // Only plain identifiers: @-macros/attributes are coloured by the lexer instead.
+        if (nameIdent == null || nameIdent.getNode().getElementType() != C3Types.IDENT) return;
+
+        PsiElement next = com.intellij.psi.util.PsiTreeUtil.nextVisibleLeaf((PsiElement) element);
+        if (next == null || next.getNode().getElementType() != C3Types.LP) return;
+
+        annotationHolder.newSilentAnnotation(HighlightSeverity.TEXT_ATTRIBUTES)
+                        .range(nameIdent.getTextRange())
+                        .textAttributes(key).create();
     }
 }

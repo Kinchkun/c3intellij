@@ -1,0 +1,355 @@
+= C3 IntelliJ Plugin — Local Setup
+:toc: macro
+:toclevels: 3
+:icons: font
+:source-highlighter: rouge
+
+This guide explains how to build, run and use the *C3 Language Support* plugin
+locally — both for plugin development (running it from source inside a sandbox
+IDE) and for day‑to‑day use of the language features it provides.
+
+toc::[]
+
+== What this plugin is
+
+A language plugin that adds support for the https://c3-lang.org/[C3 programming
+language] to IntelliJ IDEA, CLion and other JetBrains IDEs built on the IntelliJ
+Platform. It associates the `.c3`, `.c3t` and `.c3i` file types with a C3
+language implementation that provides syntax highlighting, navigation,
+documentation, code completion, inspections, run configurations and project
+wizards.
+
+== Prerequisites
+
+[cols="1,3"]
+|===
+| Requirement | Notes
+
+| *JDK 21*
+| Required to build against the IntelliJ Platform `2026.1`. A matching JDK is
+  resolved by Gradle's toolchain support (`foojay-resolver`); you can also point
+  `JAVA_HOME` at a local JDK 21.
+
+| *A locally installed JetBrains IDE*
+| The build targets a *local* IDE via `local(...)` rather than downloading the
+  platform — *CLion* is the recommended IDE for C3. See <<platform>>.
+
+| *Git*
+| To clone the repository.
+
+| *The C3 compiler (`c3c`)* — optional
+| Only needed if you want the plugin to *build/run* C3 code and to auto‑detect
+  the standard library. Not required for the editor features (highlighting,
+  navigation, documentation, completion). Install from
+  https://github.com/c3lang/c3c[c3lang/c3c].
+|===
+
+The build is driven entirely by the Gradle wrapper (`./gradlew`) — you do **not**
+need a separately installed Gradle.
+
+== Project layout
+
+[cols="1,3"]
+|===
+| Path | Purpose
+
+| `src/main/java/org/c3lang/intellij`        | Plugin source (Java).
+| `src/main/java/org/c3lang/intellij/C3.flex`| JFlex lexer definition.
+| `src/main/java/org/c3lang/intellij/C3.bnf` | Grammar‑Kit grammar (PSI + parser).
+| `src/main/gen`                              | Generated lexer/parser/PSI (on the source path).
+| `src/main/resources/META-INF/plugin.xml`   | Plugin descriptor: every extension is registered here.
+| `.run/`                                     | Ready‑made IDE run configurations.
+| `build.gradle.kts` / `settings.gradle.kts`  | Build configuration (IntelliJ Platform Gradle Plugin 2.x).
+|===
+
+== Building and running from source
+
+=== Run the plugin in a sandbox IDE (the normal dev loop)
+
+The standard way to try the plugin is to launch a *sandboxed* IDE that has the
+plugin pre‑installed. This never touches your normal IDE installation.
+
+[source,bash]
+----
+git clone https://github.com/c3lang/c3intellij.git
+cd c3intellij
+./gradlew runIde
+----
+
+A fresh IDE instance starts up with the C3 plugin loaded. Open or create a C3
+project inside it (see <<using>>). The sandbox lives under
+`build/idea-sandbox/` (logs at
+`.intellijPlatform/sandbox/*/*/log/idea.log`).
+
+[TIP]
+====
+If you have the project open in IntelliJ, use the bundled *Run Plugin* run
+configuration (from `.run/Run Plugin.run.xml`) instead of the command line —
+it runs the `runIde` task and tails the sandbox log automatically.
+====
+
+=== Other useful Gradle tasks
+
+[cols="1,3"]
+|===
+| Task | What it does
+
+| `./gradlew runIde`         | Launch a sandbox IDE with the plugin (also as the *Run Plugin* config).
+| `./gradlew test`           | Run the plugin's tests (also the *Run Tests* config).
+| `./gradlew verifyPlugin`   | Run the JetBrains Plugin Verifier (also the *Run Verifications* config).
+| `./gradlew buildPlugin`    | Produce an installable plugin ZIP under `build/distributions/`.
+| `./gradlew patchPluginXml` | Patch version/changelog into `plugin.xml` from `gradle.properties`/`CHANGELOG.md`.
+|===
+
+=== Install a locally built plugin into a real IDE
+
+To use the plugin in your everyday IDE rather than the sandbox:
+
+. `./gradlew buildPlugin`
+. In your IDE: *Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk…*
+. Select `build/distributions/c3intellij-<version>.zip`
+. Restart the IDE when prompted.
+
+[#platform]
+=== Choosing the target platform
+
+The build resolves the IntelliJ Platform from a *locally installed IDE* instead
+of downloading it, using the `local(...)` dependency in `build.gradle.kts`:
+
+[source,kotlin]
+----
+intellijPlatform {
+    // CLion is the recommended IDE for C3.
+    local(
+        providers.gradleProperty("clionPath")
+            .orElse(providers.environmentVariable("CLION_PATH"))
+            .orElse("/Users/tbr/Applications/CLion.app")
+    )
+    testFramework(TestFrameworkType.Platform)
+}
+----
+
+Point it at *your* IDE without editing the build file:
+
+[source,bash]
+----
+./gradlew runIde -PclionPath=/Applications/CLion.app
+# or
+export CLION_PATH="/Applications/CLion.app"
+----
+
+On macOS pass the `.app` bundle (Gradle resolves `…/Contents` automatically); on
+Linux/Windows pass the IDE installation directory. To download the platform
+instead of using a local IDE, replace `local(...)` with e.g.
+`intellijIdeaCommunity("2026.1")` or `clion("2026.1")`.
+
+[IMPORTANT]
+.Repositories behind a corporate mirror
+====
+`build.gradle.kts` declares the IntelliJ Platform repositories at the project
+level:
+
+[source,kotlin]
+----
+repositories {
+    intellijPlatform { defaultRepositories() }
+}
+----
+
+This is required when a global `~/.gradle` init script injects an
+`allprojects { repositories { … } }` mirror: under Gradle's default
+`PREFER_PROJECT` mode that init‑script repository overrides the ones in
+`settings.gradle.kts`, which would otherwise drop the local‑IDE artifacts
+repository that `local(...)` needs (symptom: a `…/localIde/CL/CL-<build>.pom`
+*Resource missing* error). Declaring them at the project level makes them
+coexist with the mirror.
+====
+
+[#using]
+== Using the plugin
+
+=== Associating files
+
+Files ending in `.c3` / `.c3t` (source) and `.c3i` (interface) are recognised
+automatically as *C3 File* / *C3 Interface File*. You can confirm or add
+associations under *Settings → Editor → File Types → C3 File*.
+
+To scaffold a new project, use the C3 entries in *File → New → Project…*
+(*New Project Wizard*), or create individual files via *New → C3 File* /
+*New → C3 Interface File*.
+
+=== Configuring the compiler and standard library
+
+Two settings pages control how the plugin finds the C3 toolchain. They are only
+needed for building/running C3 and for resolving the standard library; pure
+editing works without them.
+
+* *Settings → Build, Execution, Deployment → C3 Compiler*
+  — path to the `c3c` executable (defaults to `c3c` on `PATH`).
+* *Settings → Languages & Frameworks → C3*
+  — the standard‑library path.
+
+The standard‑library location is normally detected automatically. If it can't be
+found, an editor banner appears prompting you to set it; once set, the stdlib is
+exposed to the IDE as a synthetic library so its symbols participate in
+navigation, completion and documentation across the whole project.
+
+=== Feature 1 — Syntax highlighting
+
+Highlighting works at two levels:
+
+* *Lexical* — keywords, compile‑time keywords (`$if`, `$foreach`, …), built‑in
+  and user types, numbers, strings, byte literals, constants, comments
+  (line/block/doc), braces/brackets/parentheses, the comma, the semicolon and
+  *operators* (arithmetic, logical, bitwise, comparison, assignment,
+  increment/decrement, the compile‑time `&&&`/`|||`/`+++`/`???` operators and
+  `=>`).
+* *Semantic* — context‑aware coloring from the parsed PSI: distinguishing
+  functions vs. methods, macros vs. `@macros` and macro‑methods, struct / enum /
+  union / bitstruct / fault / typedef / alias definitions, attributes, and valid
+  vs. invalid string‑escape and byte sequences.
+
+All colors are customisable under
+*Settings → Editor → Color Scheme → C3*. The preview pane there demonstrates the
+main token categories.
+
+=== Feature 2 — Jump to Definition (cross‑file / cross‑project)
+
+Use *Go to Declaration* (`Ctrl/Cmd+B`, or `Ctrl/Cmd`+Click) on a symbol.
+Resolution is backed by stub indexes that span the whole project *and* the
+standard library, so navigation crosses file and module boundaries:
+
+[cols="1,2"]
+|===
+| Symbol | Resolves to
+
+| Function / macro calls         | The `fn` / `macro` definition (any file, if imported or same module).
+| Type names                     | The struct / enum / union / bitstruct / typedef / alias definition.
+| Constants                      | The `const` declaration.
+| Faults                         | The `faultdef` definition.
+| Struct / member field access   | The member declaration, following the field chain.
+| Method calls (`obj.method()`)  | The type-bound `fn` / `macro` definition for the receiver's type.
+| `import` module paths          | The `module` declaration.
+| Local variables / parameters   | Their declaration within the enclosing scope.
+|===
+
+Cross‑module resolution follows C3's visibility rules: a symbol in another
+module resolves once that module is imported (or it lives in `std::core`, which
+is implicitly available). The same index powers *Find Usages* and *Rename*.
+
+[NOTE]
+.Known gap
+====
+Enum *constants* (e.g. the `RED` in `Color.RED`) are not yet navigable —
+their stub indexing is intentionally disabled upstream. Enum *types* navigate
+normally.
+====
+
+=== Feature 3 — Quick Documentation
+
+Press `Ctrl/Cmd+Q` (or hover, if hover docs are enabled) on a symbol or its
+definition to see a rendered documentation popup. The popup shows a
+syntax‑highlighted signature, the C3 `<* … *>` doc‑comment description, and the
+defining file. Documentation is provided for:
+
+* functions and macros — including `@param` and `@return` doc‑comment sections;
+* local variables and global constants;
+* structs, enums, bitstructs and unions;
+* typedefs and type aliases;
+* `faultdef` and `attrdef` definitions;
+* `constdef` declarations and their constants;
+* enum constants (showing the owning enum);
+* modules.
+
+=== Feature 4 — Debugging (CLion only)
+
+C3 compiles to native binaries with DWARF debug info, so it can be debugged with
+CLion's bundled LLDB. This feature is only available in *CLion* (it depends on
+the native debugger); in other IDEs the plugin loads and works normally without it.
+
+* Set line breakpoints directly in `.c3` files (gutter).
+* *Debug* a *C3 Run Project* configuration (the green bug icon, or the gutter ▶
+  on `main`/`@test` → Debug). The runner builds the project with `c3c build`,
+  finds the linked executable, and launches it under LLDB.
+* Standard debugger features work via CLion: *Variables*, *Watches*, expression
+  evaluation, frames/call stack, stepping, and setting variable values.
+* C3 `String` values are rendered as readable text — the plugin bundles a
+  `c3.py` LLDB formatter and loads it into every C3 debug session automatically.
+
+NOTE: Debugging needs a debug build (DWARF symbols). The default `c3c` debug
+target (`"opt": "O0"`) includes them.
+
+=== Feature 5 — Scratch files
+
+A *Scratch* (*New → Scratch File → C3*) gets full editor support. To run one,
+write a `fn void main()` and click the gutter ▶ next to it — it runs via
+`c3c compile-run <scratch>` (a *C3 Single File* configuration is created for it).
+That configuration can also be *Debugged* under LLDB in CLion.
+
+Symbols from an open C3 project resolve in a scratch when you `import` their
+module (resolution uses the whole-project index). Compiling a scratch *against*
+a project's modules from the command the IDE runs is not done automatically —
+keep scratches self-contained, or add the needed files via the configuration's
+arguments.
+
+=== Other features
+
+* *Structure tool window* (`⌘7` / `Alt+7`) — outlines the current file:
+  functions, macros, structs (with their fields), enums (with their constants),
+  bitstructs, faults, typedefs, aliases, constants, `constdef`s and `attrdef`s.
+* *Code completion* — top‑level declarations, types, functions/macros, struct
+  fields, constants, faults, imports and doc‑comment tags.
+* *Doc comments / contracts* (`<* … *>`) — typing `<*` inserts the closing `*>`;
+  Enter continues the comment with one‑space indentation; completion offers the
+  contract annotations (`@param`, `@return`, `@return?`, `@require`, `@ensure`,
+  `@deprecated`, `@pure`), the `@param` reference modifiers (`[in]`/`[out]`/…) and
+  the surrounding parameter names; annotations and their arguments are highlighted.
+* *Inspections / quick‑fixes* — e.g. *Import module* suggests and inserts a
+  missing `import`.
+* *Run configurations* — *C3 Run Project* (`c3c run`), *C3 Single File*
+  (`c3c compile`), *C3 Test* (`c3c test`) and *C3 Docgen* (`c3c docgen`)
+  configuration types (require `c3c`). Each takes a working directory and
+  optional extra arguments.
+* *Test running* — a gutter ▶ button on `@test` functions runs just that test
+  (`c3c test --test-filter <name>`). In any run/test console, `file.c3:line`
+  references (such as failing‑assertion locations) are clickable and jump to the
+  source line.
+* *Formatting* — *Code → Reformat Code* reindents the file, and pressing Enter
+  inside a `{ }` block indents the new line by one level (based on brace nesting).
+* Brace matching, commenter (`//`, `/* */`), breadcrumbs and a color for inline
+  `#rrggbb` values.
+
+== Troubleshooting
+
+[cols="1,3"]
+|===
+| Symptom | Fix
+
+| `No IntelliJ Platform dependency found` / `…/localIde/CL/CL-<build>.pom` Resource missing
+| The local IDE can't be resolved — usually a missing/incorrect IDE path or a
+  corporate repository mirror. Set the path with `-PclionPath=…` / `CLION_PATH`
+  and see <<platform>> (the project‑level `defaultRepositories()` block).
+
+| "Standard library path couldn't be detected" banner
+| Set it under *Settings → Languages & Frameworks → C3*, or install `c3c` and
+  ensure it is on `PATH`.
+
+| Navigation/completion can't see a symbol from another module
+| Add the corresponding `import` — cross‑module resolution honours C3 visibility
+  rules (everything except `std::core` must be imported).
+
+| Editor features don't appear at all
+| Confirm the file is recognised as a *C3 File*
+  (*Settings → Editor → File Types*) and that the project has finished indexing.
+|===
+
+== Contributing notes
+
+* The lexer (`C3.flex`) and grammar (`C3.bnf`) generate code into `src/main/gen`.
+  After changing them, regenerate via the Grammar‑Kit / JFlex actions in the IDE
+  (or the corresponding Gradle tasks) before building.
+* Every IDE integration is wired up in
+  `src/main/resources/META-INF/plugin.xml` — that is the first place to look when
+  adding or locating an extension point.
+* Keep `CHANGELOG.md` updated under the `[Unreleased]` heading; `patchPluginXml`
+  folds it into the published plugin description.

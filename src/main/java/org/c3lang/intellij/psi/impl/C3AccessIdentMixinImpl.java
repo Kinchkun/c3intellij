@@ -6,6 +6,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
+import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.index.StructService;
 import org.c3lang.intellij.psi.*;
 import org.c3lang.intellij.psi.reference.C3ReferenceBase;
@@ -105,16 +106,54 @@ public abstract class C3AccessIdentMixinImpl extends C3PsiNamedElementImpl imple
 			String query = seq.rootType.getFullName();
 			List<C3StructMemberDeclaration> structMembers = Collections.emptyList();
 
-			for (String ident : seq.idents)
+			for (int i = 0; i < seq.idents.size(); i++)
 			{
+				String ident = seq.idents.get(i);
 				structMembers = StructService.INSTANCE.getStructMembers(query + "." + ident, myElement.getProject());
 				C3StructMemberDeclaration member = structMembers.size() == 1 ? structMembers.get(0) : null;
 				FullyQualifiedName nextType = member != null ? member.getStructPathType() : null;
-				if (nextType == null) return Collections.emptyList();
+				if (nextType == null)
+				{
+					// Not a data field. A method (type-bound function) call such as
+					// `client.init(...)` terminates the access chain, so resolve the final
+					// ident against the methods declared on the current type.
+					if (i == seq.idents.size() - 1)
+					{
+						List<C3PsiElement> methods = resolveMethods(query, ident, myElement);
+						if (!methods.isEmpty()) return methods;
+					}
+					return Collections.emptyList();
+				}
 				query = nextType.getFullName();
 			}
 
 			return new ArrayList<>(structMembers);
+		}
+
+		/**
+		 * Resolves {@code <type>.<ident>} to the matching method definitions
+		 * (type-bound {@code fn}/{@code macro}) that are visible from {@code context}.
+		 */
+		private static @NotNull List<C3PsiElement> resolveMethods(
+			@NotNull String typeFullName, @NotNull String ident, @NotNull C3AccessIdent context)
+		{
+			FullyQualifiedName type = FullyQualifiedName.parse(typeFullName);
+			String methodName = type.getName() + "." + ident;
+			C3ModuleDefinition moduleDefinition = context.getModuleDefinition();
+
+			List<C3PsiElement> result = new ArrayList<>();
+			for (C3FullyQualifiedNamePsiElement el :
+				NameIndexService.INSTANCE.findByNameEndsWith("." + ident, context.getProject()))
+			{
+				if (el instanceof C3CallablePsiElement callable
+					&& callable.getType() != null
+					&& el.getFqName().getName().equals(methodName)
+					&& moduleDefinition.containsImportOrSameModule(el))
+				{
+					result.add(el);
+				}
+			}
+			return result;
 		}
 
 		@Override

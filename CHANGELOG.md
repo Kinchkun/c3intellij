@@ -3,8 +3,45 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Completion inside a declaration's interface list (`struct MyStruct (…)`) offers the available interfaces (only interface types), adding the import if needed. Works even before the declaration body is typed.
+- Fixed an `AssertionError` thrown by the annotator on an incomplete `alias` declaration while typing.
+- Quick Documentation on a type used in a parameter/return type (e.g. `Formatter` in `Formatter* formatter`) now shows the type's documentation instead of the enclosing function's.
+- The gutter run marker on `main`/`@test` functions is now anchored on the function-name leaf (fixes a "LineMarker is supposed to be registered for leaf elements only" performance warning).
+- Bumped the stub-index version so the IDE rebuilds the index on update, clearing the stale-index state that logged "Stub index points to a file … without indexed stub tree" and broke highlighting until a restart.
+- Language injection: documenting a parameter with `<* @language <param>: <lang> *>` injects that language (JSON, XML, SQL, HTML, YAML, RegExp, …) into the matching string argument at every call site, so `fn("…")` is highlighted and analysed as that language. With SQL and a configured data source, the platform resolves the SQL against the database automatically. Works for positional and named arguments, free functions and `obj.method` calls.
+- Completion offers in-scope local variables and function/macro parameters, ranked above functions and types; a lower-case prefix no longer suggests (UpperCamelCase) type names.
+- Member completion (`obj.`) now works when the receiver is a function/macro parameter (e.g. a `Formatter* formatter` parameter), not only a local variable; pointer parameter types resolve to the pointee. Interface-typed receivers additionally list the interface's own and inherited methods.
+- Inspection: a struct that declares an interface but is missing its (non-`@optional`) methods is flagged, with an "Implement interface methods" quick fix (Alt+Enter) that generates `@dynamic` stubs (with an `unreachable()` body so they compile).
+- Intention (Alt+Enter): "Implement optional interface methods" — pick the interface's `@optional` methods from a popup and generate their stubs.
+- All C3 run configurations are grouped under a single "C3" node in the New Run Configuration popup.
+- Friendlier parser error messages (e.g. `';' expected` instead of `C3TokenType.EOS expected`).
+- Go to definition, Find Usages and Quick Documentation for the interface name in `struct X (Interface)`.
+- Quick Documentation works when invoked directly on a declaration's name (e.g. an `alias`/`struct`/`interface`), not only on references; fixed it hijacking interface-reference docs.
+- Doc comments (`<* ... *>`): prefix-aware completion of contract annotations (`@param`, `@return`, `@return?`, `@require`, `@ensure`, `@deprecated`, `@pure`), `@param` reference modifiers (`[in]`, `[out]`, …) and parameter names; `@require`/`@ensure` expressions are syntax-highlighted as code; typing `<*` inserts the closing `*>`; Enter continues the comment with the one-space indentation.
+- Fixed `constdef`/`enum` bodies being misparsed as generic arguments (`String { CONST = ... }`), which caused a spurious parse error and wrong indentation of the following declaration.
+- C3 name-index lookups no longer crash on a stale/inconsistent stub index (degrade gracefully; Invalidate Caches resolves the underlying issue).
+- Richer syntax highlighting: `@attribute`/`@macro` and `$compile-time` identifiers are coloured, function and method *call* sites are highlighted, and bundled default colours make types/functions/methods visible out of the box (light + dark).
+- Run and debug C3 scratch files: the gutter ▶ on `main` in a scratch runs it via `c3c compile-run`, and the resulting "C3 Single File" configuration can be debugged under LLDB (CLion).
+- Fixed "Unexpected termination offset" lexer crash when editing C3 files/scratches (highlighter lexer state is now reset on restart and never reports a token past end-of-stream).
+- Native debugging in CLion (LLDB): breakpoints in C3 files, Debug for "C3 Run Project" and "C3 Test", and bundled `c3.py` so `String` values render in Variables/Watches. Watches, inspect and set-variable come from CLion's debugger. Gated to CLion; the plugin still works in other IDEs.
+- Code formatter: Reformat Code and automatic indentation inside `{ }` blocks (including on Enter).
+- Formatter indents wrapped contents of `( )` / `[ ]` (e.g. multi-line call arguments and conditions).
+- Formatter spacing: `while(`/`if(`/`for(` (no space before the parenthesis), one space after `,`, no space before `,`/`;`, no padding inside `( )`.
 - Find usages / rename / goto declaration works for locals.
 - Find definition of module from import.
+- Structure tool window for C3 files; methods are nested under their owning type.
+- Go to Symbol / Search Everywhere (Symbols) finds C3 types, functions, macros, constants and faults by name (and no longer lists the interface usage in `struct X (Interface)` as a duplicate symbol).
+- Gutter run button on `@test` functions to run a single test.
+- Clickable `file.c3:line` links in run/test console output (e.g. failing assertions).
+- Run configurations for `c3c test` and `c3c docgen`.
+- Code completion for methods on `obj.` (not only struct fields).
+- Go to definition for method calls (`obj.method()`).
+- Go to definition and Quick Documentation for `Type.CONSTANT` access (constdef constants and enum constants).
+- Quick documentation for structs, enums, bitstructs, faults, typedefs, aliases, attrdefs, constdefs, enum/constdef constants and modules.
+- Syntax highlighting for operators; configurable colors for operators, comments, escape sequences and bytes.
+- Fixed NullPointerException resolving cross-module types (broke goto/quick-doc on imported types).
+- Fixed IndexNotReadyException crash when indexing structs with cross-module field types.
+- Fixed NullPointerException showing quick documentation for parameterless functions/macros.
 
 ## [0.2.3]
 - Correctly handle `$defined(Random r = random)`

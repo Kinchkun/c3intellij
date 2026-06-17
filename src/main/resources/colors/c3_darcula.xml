@@ -1,0 +1,21 @@
+<scheme name="C3 Darcula" version="142" parent_scheme="Darcula">
+    <attributes>
+        <!-- Types (structs, enums, unions, bitstructs, typedefs, aliases inherit this). -->
+        <option name="C3_TYPE">
+            <value>
+                <option name="FOREGROUND" value="4ec9b0"/>
+            </value>
+        </option>
+        <!-- Function and method calls/declarations. -->
+        <option name="C3_FUNCTION">
+            <value>
+                <option name="FOREGROUND" value="dcdcaa"/>
+            </value>
+        </option>
+        <option name="C3_METHOD">
+            <value>
+                <option name="FOREGROUND" value="dcdcaa"/>
+            </value>
+        </option>
+    </attributes>
+</scheme>

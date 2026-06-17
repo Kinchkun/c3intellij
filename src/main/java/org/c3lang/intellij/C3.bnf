@@ -183,6 +183,10 @@ struct_declaration ::= (KW_STRUCT | KW_UNION) type_name interface_impl? generic_
 bitstruct_declaration ::= KW_BITSTRUCT type_name interface_impl? COLON type generic_decl? attributes? bitstruct_body
 
 typedef_type ::= KW_FN optional_type fn_parameter_list | type generic_parameters? | expr
+// NOTE: a generic argument must not be an assignment/ternary expression, otherwise a
+// declaration body such as `constdef X : inline String { CONTENT_TYPE = "..." }` is
+// misparsed as the generic instantiation `String{...}`. The generated parser is patched
+// to call expr at precedence 2 (no assignment/ternary); re-apply that after regenerating.
 generic_parameter ::= expr | type
 generic_parameters ::= LB generic_parameter (COMMA generic_parameter)* RB
 

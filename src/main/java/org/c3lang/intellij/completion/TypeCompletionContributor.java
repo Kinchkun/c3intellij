@@ -51,6 +51,10 @@ public final class TypeCompletionContributor extends CompletionProvider<Completi
         psiElement().inside(C3FnParameterList.class)
     );
 
+    // Inside `struct X (...)` only interfaces are valid; InterfaceCompletionContributor handles it.
+    private static final ElementPattern<PsiElement> INTERFACE_IMPL =
+        psiElement().inside(org.c3lang.intellij.psi.C3InterfaceImpl.class);
+
     private TypeCompletionContributor()
     {
     }
@@ -66,10 +70,22 @@ public final class TypeCompletionContributor extends CompletionProvider<Completi
             return;
         }
 
+        if (INTERFACE_IMPL.accepts(parameters.getPosition()) || INTERFACE_IMPL.accepts(parameters.getOriginalPosition()))
+        {
+            return;
+        }
+
         C3Type lookupTarget = CompletionExtensionsKt.siblingOf(parameters, C3Type.class);
         if (lookupTarget == null) return;
 
         String lookupString = CompletionExtensionsKt.getLookupString(parameters, lookupTarget);
+
+        // C3 type names are UpperCamelCase. When the name being typed starts lower-case the
+        // user wants a variable/function, not a type, so don't offer types.
+        int separator = lookupString.lastIndexOf("::");
+        String simpleName = separator >= 0 ? lookupString.substring(separator + 2) : lookupString;
+        if (!simpleName.isEmpty() && Character.isLowerCase(simpleName.charAt(0))) return;
+
         var matcher = CompletionExtensionsKt.getMatcher(lookupString);
 
         C3ModuleDefinition moduleDefinition = CompletionExtensionsKt.getModuleDefinition(parameters);
@@ -151,7 +167,21 @@ public final class TypeCompletionContributor extends CompletionProvider<Completi
                     AddImportQuickFix.addImportAsText(element, moduleDefinition);
 
                 ModuleName importModuleName = importAction != null ? importAction.getModuleName() : null;
-                String textToInsert = moduleDefinition.textToInsert(importModuleName, element);
+
+                // Types don't need to be namespaced once their module is imported, so insert the
+                // bare type name (HttpClient) rather than the module-qualified path
+                // (blocking::HttpClient) whenever the type's own module is the imported one.
+                String textToInsert;
+                if (moduleDefinition.isSameModule(element)
+                    || element.getModuleName() == null
+                    || (importModuleName != null && importModuleName.equals(element.getModuleName())))
+                {
+                    textToInsert = element.getFqName().getName();
+                }
+                else
+                {
+                    textToInsert = moduleDefinition.textToInsert(importModuleName, element);
+                }
                 int endOffset = context.getEditor().getCaretModel().getOffset();
 
                 context.getDocument().replaceString(

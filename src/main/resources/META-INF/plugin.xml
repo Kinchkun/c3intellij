@@ -10,7 +10,7 @@
     ]]></description>
   
   <depends>com.intellij.modules.platform</depends>
-  <!--<depends optional="true" config-file="cidrdebugger.xml">com.intellij.modules.cidr.debugger</depends>-->
+  <depends optional="true" config-file="cidrdebugger.xml">com.intellij.modules.cidr.debugger</depends>
 
   <extensions defaultExtensionNs="com.intellij">
     <stubElementTypeHolder externalIdPrefix="c3."
@@ -48,12 +48,21 @@
                        implementationClass="org.c3lang.intellij.C3BraceMatcher"/>
     <lang.commenter language="C3"
                     implementationClass="org.c3lang.intellij.C3Commenter"/>
+    <lang.formatter language="C3"
+                    implementationClass="org.c3lang.intellij.formatter.C3FormattingModelBuilder"/>
     <lang.quoteHandler language="C3"
                        implementationClass="org.c3lang.intellij.C3QuoteHandler"/>
     <lang.findUsagesProvider language="C3"
                              implementationClass="org.c3lang.intellij.findUsages.C3FindUsagesProvider"/>
+    <lang.psiStructureViewFactory language="C3"
+                                  implementationClass="org.c3lang.intellij.structure.C3StructureViewFactory"/>
+    <gotoSymbolContributor implementation="org.c3lang.intellij.C3SymbolContributor"/>
     <lang.documentationProvider language="C3"
                                 implementationClass="org.c3lang.intellij.docs.C3DocumentationProvider" />
+    <psi.referenceContributor language="C3"
+                              implementation="org.c3lang.intellij.psi.reference.C3ReferenceContributor" />
+    <typedHandler implementation="org.c3lang.intellij.C3DocCommentTypedHandler" />
+    <enterHandlerDelegate implementation="org.c3lang.intellij.C3DocCommentEnterHandler" />
     <lang.elementManipulator implementationClass="org.c3lang.intellij.psi.NamedElementManipulator"
                              forClass="org.c3lang.intellij.psi.C3PsiNamedElement" />
     <!--<lang.refactoringSupport language="C3"
@@ -72,6 +81,8 @@
                             implementationClass="org.c3lang.intellij.completion.C3CompletionContributor" />
     <codeInsight.lineMarkerProvider language="C3"
                                     implementationClass="org.c3lang.intellij.C3LineMarkerProvider" />
+    <consoleFilterProvider implementation="org.c3lang.intellij.C3ConsoleFilterProvider" />
+    <multiHostInjector implementation="org.c3lang.intellij.injection.C3LanguageInjector" />
     <!--<completion.contributor language="C3"
                                 implementationClass="org.c3lang.intellij.C3CompletionContributor" />-->
     <!--<psi.referenceProvider providerClass="org.c3lang.intellij.C3PsiReferenceProvider" />-->
@@ -86,6 +97,12 @@
                      level="WARNING"
                      implementationClass="org.c3lang.intellij.intention.ImportModuleInspection" />
     <localInspection language="C3"
+                     displayName="Unimplemented interface methods"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="ERROR"
+                     implementationClass="org.c3lang.intellij.intention.C3InterfaceImplementationInspection" />
+    <localInspection language="C3"
                      enabledByDefault="true"
                      displayName="Log references"
                      groupName="Debug"
@@ -97,6 +114,14 @@
                          groupName="Call expressions"
                          level="WARNING"
                          implementationClass="org.c3lang.intellij.intention.CallExprInspection" />-->
+
+    <additionalTextAttributes scheme="Default" file="colors/c3_default.xml"/>
+    <additionalTextAttributes scheme="Darcula" file="colors/c3_darcula.xml"/>
+    <intentionAction>
+      <language>C3</language>
+      <className>org.c3lang.intellij.intention.ImplementOptionalInterfaceMethodsIntention</className>
+      <category>C3</category>
+    </intentionAction>
 
     <colorSettingsPage implementation="org.c3lang.intellij.C3ColorSettingsPage"/>
     <colorProvider implementation="org.c3lang.intellij.C3ElementColorProvider" />
@@ -119,8 +144,7 @@
     <newProjectWizard.languageGenerator implementation="org.c3lang.intellij.wizard.C3NewLibraryWizard"/>
     <!--<projectSdkSetupValidator implementation="" />-->
  
-    <configurationType implementation="org.c3lang.intellij.C3CompileRunConfigurationType"/>
-    <configurationType implementation="org.c3lang.intellij.C3BuildRunConfigurationType"/>
+    <configurationType implementation="org.c3lang.intellij.C3ConfigurationType"/>
  
     <postStartupActivity implementation="org.c3lang.intellij.actions.StartupAction" />
 

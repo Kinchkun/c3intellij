@@ -71,8 +71,16 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	public @Nullable FullyQualifiedName findTypeName()
 	{
 		List<C3LocalDeclAfterType> decls = findLocalDeclAfterType();
-		if (decls.size() != 1) return null;
-		return decls.getFirst().findTypeName();
+		if (decls.size() == 1) return decls.getFirst().findTypeName();
+
+		// The receiver may be a function/macro parameter rather than a local declaration
+		// (e.g. `Formatter formatter` → Formatter), so member completion works on parameters too.
+		Collection<C3PsiElement> params = new C3ParameterReference(this).multiResolve();
+		if (params.size() == 1 && params.iterator().next() instanceof C3Parameter parameter)
+		{
+			return parameter.findTypeName();
+		}
+		return null;
 	}
 
 	@Override

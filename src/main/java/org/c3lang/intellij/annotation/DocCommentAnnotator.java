@@ -2,12 +2,14 @@ package org.c3lang.intellij.annotation;
 
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.HighlightSeverity;
+import com.intellij.lexer.Lexer;
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiWhiteSpace;
+import org.c3lang.intellij.C3SyntaxHighlighter;
 import org.c3lang.intellij.psi.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.jetbrains.annotations.Nullable;
@@ -25,11 +27,44 @@ public final class DocCommentAnnotator
 
 	public static void annotateDocComment(PsiComment element, AnnotationHolder holder)
 	{
+		annotateContractExpressions(element, holder);
 		annotateDocTags(element, holder);
 		annotateParamTags(element, holder);
 		annotateReturnTags(element, holder);
 		annotateDeprecatedTags(element, holder);
 		annotateStrings(element, holder);
+	}
+
+	/**
+	 * Highlights the boolean expressions in {@code @require}/{@code @ensure} contracts as C3
+	 * code (operators, identifiers, literals, ...), up to an optional {@code : "description"}.
+	 */
+	private static void annotateContractExpressions(PsiComment element, AnnotationHolder holder)
+	{
+		Pattern pattern = Pattern.compile("@(require|ensure)\\s+([^\\n:]*)");
+		String commentText = element.getText();
+		int commentStart = element.getTextRange().getStartOffset();
+
+		C3SyntaxHighlighter highlighter = new C3SyntaxHighlighter();
+		Matcher matcher = pattern.matcher(commentText);
+		while (matcher.find())
+		{
+			String expr = matcher.group(2);
+			if (expr.isBlank()) continue;
+			int exprStart = commentStart + matcher.start(2);
+
+			Lexer lexer = highlighter.getHighlightingLexer();
+			lexer.start(expr);
+			while (lexer.getTokenType() != null)
+			{
+				TextAttributesKey[] keys = highlighter.getTokenHighlights(lexer.getTokenType());
+				if (keys.length > 0)
+				{
+					mark(holder, exprStart + lexer.getTokenStart(), exprStart + lexer.getTokenEnd(), keys[0]);
+				}
+				lexer.advance();
+			}
+		}
 	}
 
 	public static void annotateStrings(PsiComment element, AnnotationHolder holder)

@@ -12,14 +12,16 @@ public final class C3CompletionContributor extends CompletionContributor
 	{
 		var pattern = psiElement();
 
+		extend(CompletionType.BASIC, pattern, LocalCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, FunctionCompletionContributor.INSTANCE);
+		extend(CompletionType.BASIC, pattern, InterfaceCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, TypeCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, ImportCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, ConstCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, FaultCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, TailExprCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, InitializerListCompletionContributor.INSTANCE);
-		//extend(CompletionType.BASIC, pattern, DocCommentCompletionContributor) TODO
+		extend(CompletionType.BASIC, pattern, DocCommentCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, TopLevelCompletionContributor.INSTANCE);
 	}
 

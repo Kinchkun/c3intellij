@@ -1,4 +1,12 @@
 <idea-plugin>
+    <!-- Loaded only when the native (CIDR/LLDB) debugger is available, i.e. in CLion. -->
     <extensions defaultExtensionNs="cidr.debugger">
+        <lineBreakpointFileTypesProvider
+            implementation="org.c3lang.intellij.debugger.C3LineBreakpointFileTypesProvider"/>
+        <debugProcessConfigurator
+            implementation="org.c3lang.intellij.debugger.C3DebugProcessConfigurator"/>
+    </extensions>
+    <extensions defaultExtensionNs="com.intellij">
+        <programRunner implementation="org.c3lang.intellij.debugger.C3DebugRunner"/>
     </extensions>
 </idea-plugin>

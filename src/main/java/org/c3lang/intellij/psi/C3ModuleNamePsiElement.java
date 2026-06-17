@@ -16,8 +16,12 @@ public interface C3ModuleNamePsiElement extends C3PsiElement
 
 	default boolean isImported(@NotNull C3FullyQualifiedNamePsiElement other)
 	{
-		C3ModuleDefinition moduleDefinition = Objects.requireNonNull(
-			PsiTreeUtil.getParentOfType(this, C3ModuleDefinition.class, true));
+		// strict = false so that when `this` is itself the C3ModuleDefinition (e.g. the
+		// import context of a reference) it is used directly, instead of looking for a
+		// non-existent enclosing module and throwing.
+		C3ModuleDefinition moduleDefinition =
+			PsiTreeUtil.getParentOfType(this, C3ModuleDefinition.class, false);
+		if (moduleDefinition == null) return false;
 		return other.getModuleDefinition().equals(moduleDefinition)
 			|| moduleDefinition.getVisibleModulePrefix(other.getModuleName()) != null;
 	}

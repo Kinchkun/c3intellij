@@ -103,6 +103,32 @@ public final class StructService
     }
 
     @SuppressWarnings("DuplicatedCode")
+    /**
+     * Walks {@code path} from {@code rootType} and returns the fully-qualified name of the
+     * type whose members are being accessed. The trailing (partial / empty) ident stops the
+     * walk, so for {@code client.} this returns {@code client}'s type. Used to offer the
+     * methods declared on that type during completion.
+     */
+    @NotNull
+    public String resolveContainerType(
+            @NotNull FullyQualifiedName rootType,
+            @NotNull List<String> path,
+            @NotNull Project project)
+    {
+        String query = rootType.getFullName();
+        for (String ident : path)
+        {
+            List<C3StructMemberDeclaration> members = getStructMembers(query + "." + ident, project);
+            C3StructMemberDeclaration member = members.size() == 1 ? members.get(0) : null;
+            String next = member != null && member.getStructPathType() != null
+                ? member.getStructPathType().getFullName()
+                : null;
+            if (next == null) break;
+            query = next;
+        }
+        return query;
+    }
+
     @NotNull
     public List<C3StructMemberDeclaration> getStructMemberDeclaration(
             @NotNull FullyQualifiedName rootType,

@@ -1,0 +1,21 @@
+<scheme name="C3 Default" version="142" parent_scheme="Default">
+    <attributes>
+        <!-- Types (structs, enums, unions, bitstructs, typedefs, aliases inherit this). -->
+        <option name="C3_TYPE">
+            <value>
+                <option name="FOREGROUND" value="267f99"/>
+            </value>
+        </option>
+        <!-- Function and method calls/declarations. -->
+        <option name="C3_FUNCTION">
+            <value>
+                <option name="FOREGROUND" value="795e26"/>
+            </value>
+        </option>
+        <option name="C3_METHOD">
+            <value>
+                <option name="FOREGROUND" value="795e26"/>
+            </value>
+        </option>
+    </attributes>
+</scheme>

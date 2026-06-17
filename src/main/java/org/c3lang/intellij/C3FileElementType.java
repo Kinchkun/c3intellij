@@ -12,7 +12,10 @@ import org.jetbrains.annotations.NotNull;
 public class C3FileElementType extends IStubFileElementType<C3FileStub> {
     public static final C3FileElementType INSTANCE = new C3FileElementType();
 
-    public static final int STUB_VERSION = 2;
+    // Bump on any change affecting the stub layout/PSI so the IDE rebuilds the index on update
+    // instead of reusing a stale one (a stale index logs "Stub index points to a file ... without
+    // indexed stub tree" and breaks cross-file resolution/highlighting until Invalidate Caches).
+    public static final int STUB_VERSION = 3;
 
     public C3FileElementType() {
         super("c3.FILE", C3Language.INSTANCE);

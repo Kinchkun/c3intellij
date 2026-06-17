@@ -1,6 +1,7 @@
 package org.c3lang.intellij.psi.impl;
 
 import com.intellij.lang.ASTNode;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.psi.*;
@@ -151,6 +152,14 @@ public abstract class C3ModuleDefinitionMixinImpl extends C3PsiElementImpl imple
 		if (type.getBaseType().getPath() == null)
 		{
 			return Collections.singletonList(new FullyQualifiedName(getModuleName(), type.getBaseType().getText()));
+		}
+
+		// The remaining resolution queries the stub index. During stub building (dumb
+		// mode) that throws IndexNotReadyException, so bail out with no result; callers
+		// fall back to the unresolved type text. (See C3StructDeclarationStub.)
+		if (DumbService.isDumb(getProject()))
+		{
+			return Collections.emptyList();
 		}
 
 		List<ModuleName> imports = new ArrayList<>();
