@@ -107,6 +107,12 @@
                      displayName="Log references"
                      groupName="Debug"
                      implementationClass="org.c3lang.intellij.intention.LogReferencesInspection" />
+    <localInspection language="C3"
+                     displayName="Unused declaration"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="WARNING"
+                     implementationClass="org.c3lang.intellij.intention.C3UnusedDeclarationInspection" />
     <!-- TODO: Enable after grammar rewrite -->
     <!--<localInspection language="C3"
                          enabledByDefault="true"

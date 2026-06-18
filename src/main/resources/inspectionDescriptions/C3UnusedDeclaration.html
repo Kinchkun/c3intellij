@@ -1,0 +1,14 @@
+<html>
+<body>
+Reports declarations that are never used: structs, unions, interfaces, enums, typedefs, aliases,
+faults, functions, methods, global variables, constants, function parameters and local variables.
+Unused declarations are greyed out and can be removed with the <i>Delete unused declaration</i>
+quick fix.
+<p>
+Entry points and externally-visible declarations are not reported: the <code>main</code> function,
+declarations carrying attributes such as <code>@export</code>, <code>@extern</code>,
+<code>@cname</code>, <code>@init</code> or <code>@test</code>, and methods (with their parameters)
+that satisfy an interface implemented by their receiver type.
+</p>
+</body>
+</html>
