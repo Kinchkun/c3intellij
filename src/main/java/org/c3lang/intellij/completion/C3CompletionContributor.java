@@ -14,6 +14,7 @@ public final class C3CompletionContributor extends CompletionContributor
 
 		extend(CompletionType.BASIC, pattern, LocalCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, FunctionCompletionContributor.INSTANCE);
+		extend(CompletionType.BASIC, pattern, NamedArgumentCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, InterfaceCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, TypeCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, ImportCompletionContributor.INSTANCE);

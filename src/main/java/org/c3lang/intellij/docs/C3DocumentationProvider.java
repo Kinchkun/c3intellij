@@ -4,8 +4,10 @@ import com.intellij.lang.documentation.AbstractDocumentationProvider;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiNameIdentifierOwner;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.psi.C3AliasTypeDecl;
+import org.c3lang.intellij.psi.C3NameIdentProvider;
 import org.c3lang.intellij.psi.C3AttrdefDecl;
 import org.c3lang.intellij.psi.C3BitstructDeclaration;
 import org.c3lang.intellij.psi.C3ConstDeclarationStmt;
@@ -109,7 +111,18 @@ public final class C3DocumentationProvider extends AbstractDocumentationProvider
 			C3Module.class,
 			C3ConstDeclarationStmt.class,
 			C3LocalDeclAfterType.class);
-		if (declaration != null) return declaration;
+		if (declaration != null)
+		{
+			// Map to the declaration only when the caret is on its name. These declarations enclose
+			// their initializer (e.g. `String s = load_environment(...)`), so a caret on a reference
+			// in the initializer must resolve that reference, not document the variable.
+			PsiElement nameElement = declarationName(declaration);
+			if (nameElement == null || PsiTreeUtil.isAncestor(nameElement, contextElement, false))
+			{
+				return declaration;
+			}
+			return null;
+		}
 
 		// Only handle a type name when it *is* the name of a declaration. A type name used as a
 		// reference (e.g. the interface in `struct X (Printable)`) must resolve via its reference
@@ -117,6 +130,14 @@ public final class C3DocumentationProvider extends AbstractDocumentationProvider
 		org.c3lang.intellij.psi.C3TypeName typeName =
 			PsiTreeUtil.getNonStrictParentOfType(contextElement, org.c3lang.intellij.psi.C3TypeName.class);
 		return typeName != null && isTypeDeclarationName(typeName) ? typeName : null;
+	}
+
+	/** The name element of a declaration, or null if it cannot be determined. */
+	private static @Nullable PsiElement declarationName(@org.jetbrains.annotations.NotNull PsiElement declaration)
+	{
+		if (declaration instanceof C3NameIdentProvider provider) return provider.getNameIdentElement();
+		if (declaration instanceof PsiNameIdentifierOwner owner) return owner.getNameIdentifier();
+		return null;
 	}
 
 	private static boolean isTypeDeclarationName(@org.jetbrains.annotations.NotNull org.c3lang.intellij.psi.C3TypeName typeName)

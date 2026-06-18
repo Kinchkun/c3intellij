@@ -118,16 +118,17 @@ public final class FunctionCompletionContributor extends CompletionProvider<Comp
                 double nameDegree = CompletionExtensionsKt.matchingDegreeOrZero(
                     matcher, qualified ? fqName.getFullName() : fqName.getName());
 
-                // Closeness breaks ties between equally good matches: own file > own module >
-                // imported > standard library.
+                // Closeness is the primary signal: own file > own module > imported > standard
+                // library. A nearer declaration outranks a farther one even when the farther one is
+                // a better textual match (an exact `mem::load` should still lose to a same-module
+                // `load_environment`). Match quality only orders names within the same tier.
                 double closeness;
                 if (element.getSourceFileName().equals(containingFileName)) closeness = 3.0;
                 else if (java.util.Objects.equals(element.getModuleName(), moduleDefinition.getModuleName())) closeness = 2.0;
                 else if (moduleDefinition.getVisibleModulePrefix(element.getModuleName()) != null) closeness = 1.0;
                 else closeness = 0.0;
 
-                // Match quality dominates; closeness only decides between similarly-scoring names.
-                double priority = nameDegree * 10.0 + closeness;
+                double priority = closeness * 100_000.0 + Math.min(nameDegree, 99_999.0);
                 result.addElement(
                     PrioritizedLookupElement.withPriority(
                         createLookupElementBuilder(moduleDefinition, element, fqName, insertHandler),

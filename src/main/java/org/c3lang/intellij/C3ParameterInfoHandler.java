@@ -6,26 +6,18 @@ import com.intellij.lang.parameterInfo.ParameterInfoUIContext;
 import com.intellij.lang.parameterInfo.ParameterInfoUtils;
 import com.intellij.lang.parameterInfo.UpdateParameterInfoContext;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiPolyVariantReference;
-import com.intellij.psi.PsiReference;
-import com.intellij.psi.ResolveResult;
 import com.intellij.psi.util.PsiTreeUtil;
-import org.c3lang.intellij.psi.C3AccessIdent;
-import org.c3lang.intellij.psi.C3Arg;
 import org.c3lang.intellij.psi.C3ArgList;
 import org.c3lang.intellij.psi.C3CallArgList;
-import org.c3lang.intellij.psi.C3CallExpr;
 import org.c3lang.intellij.psi.C3CallInvocation;
 import org.c3lang.intellij.psi.C3CallablePsiElement;
-import org.c3lang.intellij.psi.C3Expr;
-import org.c3lang.intellij.psi.C3PathIdent;
+import org.c3lang.intellij.psi.C3Calls;
 import org.c3lang.intellij.psi.C3Types;
 import org.c3lang.intellij.psi.ParamType;
 import org.c3lang.intellij.psi.ShortType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,7 +33,7 @@ public final class C3ParameterInfoHandler implements ParameterInfoHandler<C3Call
 		C3CallInvocation invocation = invocationAt(context.getFile().findElementAt(context.getOffset()));
 		if (invocation == null) return null;
 
-		List<C3CallablePsiElement> callables = resolveCallables(invocation);
+		List<C3CallablePsiElement> callables = C3Calls.resolveCallables(invocation);
 		if (callables.isEmpty()) return null;
 
 		context.setItemsToShow(callables.toArray());
@@ -115,45 +107,5 @@ public final class C3ParameterInfoHandler implements ParameterInfoHandler<C3Call
 	private static @Nullable C3CallInvocation invocationAt(@Nullable PsiElement element)
 	{
 		return PsiTreeUtil.getParentOfType(element, C3CallInvocation.class);
-	}
-
-	/** The function/method definitions a call invocation could be targeting (overloads included). */
-	private static @NotNull List<C3CallablePsiElement> resolveCallables(@NotNull C3CallInvocation invocation)
-	{
-		C3CallExpr call = PsiTreeUtil.getParentOfType(invocation, C3CallExpr.class);
-		C3Expr callee = call != null ? call.getExpr() : null;
-		if (callee == null) return List.of();
-
-		PsiElement nameElement;
-		if (callee instanceof C3CallExpr inner
-			&& inner.getCallExprTail() != null
-			&& inner.getCallExprTail().getAccessIdent() != null)
-		{
-			nameElement = inner.getCallExprTail().getAccessIdent(); // method call: `recv.method(...)`
-		}
-		else
-		{
-			nameElement = PsiTreeUtil.findChildOfType(callee, C3PathIdent.class); // `foo(...)` / `mod::foo(...)`
-		}
-		if (nameElement == null) return List.of();
-
-		PsiReference reference = nameElement instanceof C3AccessIdent accessIdent
-			? accessIdent.getReference()
-			: ((C3PathIdent) nameElement).getReference();
-		if (reference == null) return List.of();
-
-		List<C3CallablePsiElement> callables = new ArrayList<>();
-		if (reference instanceof PsiPolyVariantReference poly)
-		{
-			for (ResolveResult result : poly.multiResolve(false))
-			{
-				if (result.getElement() instanceof C3CallablePsiElement callable) callables.add(callable);
-			}
-		}
-		else if (reference.resolve() instanceof C3CallablePsiElement callable)
-		{
-			callables.add(callable);
-		}
-		return callables;
 	}
 }

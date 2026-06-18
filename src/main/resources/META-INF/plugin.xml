@@ -24,6 +24,7 @@
     <stubIndex implementation="org.c3lang.intellij.index.StructMemberDeclarationIndex"/>
 
     <additionalLibraryRootsProvider implementation="org.c3lang.intellij.C3StdLibRootsProvider"/>
+    <additionalLibraryRootsProvider implementation="org.c3lang.intellij.C3ProjectLibrariesRootsProvider"/>
     <fileType name="C3 File"
               implementationClass="org.c3lang.intellij.C3SourceFileType"
               fieldName="INSTANCE"
@@ -121,6 +122,12 @@
                      enabledByDefault="true"
                      level="WARNING"
                      implementationClass="org.c3lang.intellij.intention.C3UnusedExpressionResultInspection" />
+    <localInspection language="C3"
+                     displayName="Unknown named argument"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="ERROR"
+                     implementationClass="org.c3lang.intellij.intention.C3NamedArgumentInspection" />
     <!-- TODO: Enable after grammar rewrite -->
     <!--<localInspection language="C3"
                          enabledByDefault="true"

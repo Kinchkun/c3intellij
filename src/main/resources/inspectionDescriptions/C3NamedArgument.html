@@ -1,0 +1,11 @@
+<html>
+<body>
+Reports named call arguments whose name does not match any parameter of the called function, e.g.
+<code>my_function(parm: 3)</code> when the parameter is called <code>param</code>.
+<p>
+To avoid false positives, the check only runs when the callee resolves to ordinary functions. Calls
+that cannot be resolved, and macro invocations (whose parameters are more flexible), are not
+reported.
+</p>
+</body>
+</html>
