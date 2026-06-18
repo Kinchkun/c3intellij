@@ -69,34 +69,38 @@ public final class NameIndexService
     @NotNull
     public Collection<C3FullyQualifiedNamePsiElement> findType(@NotNull C3BaseType type, @NotNull Project project)
     {
-        String name;
-        if (type.getPath() == null)
-        {
-            String module = type.getModuleDefinition().getModuleName() != null
-                ? type.getModuleDefinition().getModuleName().getValue()
-                : null;
-            name = module != null ? module + "::" + type.getText() : type.getText();
-        }
-        else
-        {
-            name = type.getText();
-        }
-
         List<C3FullyQualifiedNamePsiElement> result = new ArrayList<>();
         for (String key : StubIndex.getInstance().getAllKeys(NameIndex.KEY, project))
         {
-            if (key.endsWith(name))
+            if (!keyMatchesType(key, type)) continue;
+            for (C3PsiElement element : getElementsByName(key, project))
             {
-                for (C3PsiElement element : getElementsByName(key, project))
+                if (element instanceof C3FullyQualifiedNamePsiElement named)
                 {
-                    if (element instanceof C3FullyQualifiedNamePsiElement named)
-                    {
-                        result.add(named);
-                    }
+                    result.add(named);
                 }
             }
         }
         return result;
+    }
+
+    /**
+     * Whether a NameIndex {@code key} (a fully-qualified {@code module::Name}) denotes the given
+     * type reference.
+     *
+     * <p>A path-qualified reference ({@code curl::CurlOption}) is matched against the key suffix.
+     * An unqualified reference ({@code CurlOption}) is matched on the simple name across <em>all</em>
+     * modules — module visibility is intentionally left to the caller's import check, so that a
+     * type imported from another module still becomes a resolution candidate.</p>
+     */
+    private static boolean keyMatchesType(@NotNull String key, @NotNull C3BaseType type)
+    {
+        if (type.getPath() != null)
+        {
+            return key.endsWith(type.getText());
+        }
+        String simpleName = type.getNameIdent() != null ? type.getNameIdent() : type.getText();
+        return key.equals(simpleName) || key.endsWith("::" + simpleName);
     }
 
     @NotNull
