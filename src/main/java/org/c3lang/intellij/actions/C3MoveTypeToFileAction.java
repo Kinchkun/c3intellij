@@ -5,13 +5,14 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.InputValidatorEx;
 import com.intellij.openapi.ui.Messages;
-import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiDirectory;
+import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
@@ -73,7 +74,7 @@ public final class C3MoveTypeToFileAction extends AnAction
 		}
 
 		Project project = context.project;
-		String defaultName = context.typeName + ".c3";
+		String defaultName = toSnakeCase(context.typeName) + ".c3";
 		String input = Messages.showInputDialog(
 			project,
 			"File name or path (relative to the current directory):",
@@ -93,19 +94,19 @@ public final class C3MoveTypeToFileAction extends AnAction
 
 	private static void performMove(@NotNull Context context, @NotNull String relativePath)
 	{
-		// Capture the source text of every moved unit before touching the tree.
+		// Capture the source text of every moved unit before touching the tree. Each unit's range
+		// starts at its leading doc comment (if any) so the comment travels with the declaration.
 		String fileText = context.sourceFile.getText();
-		List<int[]> ranges = new ArrayList<>();
-		List<PsiElement[]> toDelete = new ArrayList<>();
+		List<int[]> contentRanges = new ArrayList<>();
+		List<int[]> deleteRanges = new ArrayList<>();
 		for (C3TopLevel unit : context.units)
 		{
-			PsiElement first = leadingDocStart(unit);
-			PsiElement last = trailingWhitespace(unit);
-			ranges.add(new int[] { first.getTextRange().getStartOffset(), unit.getTextRange().getEndOffset() });
-			toDelete.add(new PsiElement[] { first, last });
+			int start = leadingDocStart(unit).getTextRange().getStartOffset();
+			contentRanges.add(new int[] { start, unit.getTextRange().getEndOffset() });
+			deleteRanges.add(new int[] { start, trailingWhitespace(unit).getTextRange().getEndOffset() });
 		}
 
-		String content = buildContent(context, fileText, ranges);
+		String content = buildContent(context, fileText, contentRanges);
 
 		PsiDirectory directory = resolveDirectory(context.sourceDirectory(), relativePath);
 		String fileName = relativePath.substring(relativePath.lastIndexOf('/') + 1);
@@ -119,12 +120,20 @@ public final class C3MoveTypeToFileAction extends AnAction
 			.createFileFromText(fileName, C3SourceFileType.INSTANCE, content);
 		PsiElement added = directory.add(newFile);
 
-		// Remove the moved declarations from the source (last to first to keep earlier nodes valid).
-		PsiElement section = context.section;
-		for (int i = toDelete.size() - 1; i >= 0; i--)
+		// Remove the moved declarations (with their doc comments) from the source. Editing the
+		// document directly — last range first to keep earlier offsets valid — handles doc comments
+		// that bind outside the module section's child range, such as the first declaration in a
+		// file with no explicit `module` statement.
+		PsiDocumentManager documentManager = PsiDocumentManager.getInstance(context.project);
+		Document document = documentManager.getDocument(context.sourceFile);
+		if (document != null)
 		{
-			PsiElement[] range = toDelete.get(i);
-			section.deleteChildRange(range[0], range[1]);
+			deleteRanges.sort((a, b) -> Integer.compare(b[0], a[0]));
+			for (int[] range : deleteRanges)
+			{
+				document.deleteString(range[0], range[1]);
+			}
+			documentManager.commitDocument(document);
 		}
 
 		if (added instanceof PsiFile created && created.getVirtualFile() != null)
@@ -152,15 +161,21 @@ public final class C3MoveTypeToFileAction extends AnAction
 		return content.toString().stripTrailing() + "\n";
 	}
 
-	/** The earliest element of {@code unit}'s leading doc-comment block, or {@code unit} itself. */
+	/**
+	 * The earliest element of {@code unit}'s leading doc-comment block, or {@code unit} itself.
+	 *
+	 * <p>Walks the preceding leaf stream rather than {@code unit}'s direct siblings: a {@code <* *>}
+	 * doc comment is a run of {@code DOC_COMMENT} leaves that may bind outside the declaration's
+	 * parent node, so a sibling-only walk would miss it.</p>
+	 */
 	private static @NotNull PsiElement leadingDocStart(@NotNull C3TopLevel unit)
 	{
 		PsiElement start = unit;
-		for (PsiElement prev = unit.getPrevSibling();
-		     prev instanceof PsiWhiteSpace || isDocComment(prev);
-		     prev = prev.getPrevSibling())
+		for (PsiElement leaf = PsiTreeUtil.prevLeaf(unit);
+		     leaf instanceof PsiWhiteSpace || isDocComment(leaf);
+		     leaf = PsiTreeUtil.prevLeaf(leaf))
 		{
-			if (isDocComment(prev)) start = prev;
+			if (isDocComment(leaf)) start = leaf;
 		}
 		return start;
 	}
@@ -187,9 +202,21 @@ public final class C3MoveTypeToFileAction extends AnAction
 
 	private static boolean isDocComment(@Nullable PsiElement element)
 	{
-		return element instanceof PsiComment
+		return element != null
 			&& element.getNode() != null
 			&& element.getNode().getElementType() == C3ParserDefinition.DOC_COMMENT;
+	}
+
+	/**
+	 * Converts a PascalCase/camelCase type name to snake_case for use as a default file name,
+	 * e.g. {@code MyStruct -> my_struct}, {@code HTTPServer -> http_server}.
+	 */
+	private static @NotNull String toSnakeCase(@NotNull String name)
+	{
+		String snake = name
+			.replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+			.replaceAll("([A-Z]+)([A-Z][a-z])", "$1_$2");
+		return snake.toLowerCase();
 	}
 
 	/** Cheap check used by {@link #update}: is the caret on a movable type declaration? */
