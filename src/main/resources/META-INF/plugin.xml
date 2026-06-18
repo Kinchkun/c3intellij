@@ -113,6 +113,12 @@
                      enabledByDefault="true"
                      level="WARNING"
                      implementationClass="org.c3lang.intellij.intention.C3UnusedDeclarationInspection" />
+    <localInspection language="C3"
+                     displayName="Unused expression result"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="WARNING"
+                     implementationClass="org.c3lang.intellij.intention.C3UnusedExpressionResultInspection" />
     <!-- TODO: Enable after grammar rewrite -->
     <!--<localInspection language="C3"
                          enabledByDefault="true"

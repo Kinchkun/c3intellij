@@ -1,0 +1,14 @@
+<html>
+<body>
+Reports statements that compute a value and then throw it away — for example calling a function
+whose return value is never stored, returned or otherwise used. The <i>Create local variable</i>
+quick fix rewrites <code>expression;</code> as <code>Type name = expression;</code>, inferring the
+type and a snake_case name when possible and otherwise letting you type them.
+<p>
+Statements written for their side effect are not reported: assignments, increments
+(<code>x++</code>), optional-unwraps (<code>mayFail()!</code>) and explicit <code>(void)</code>
+discards. A call is reported only when its callee resolves to a function with a non-<code>void</code>
+return type that is not annotated <code>@maydiscard</code>.
+</p>
+</body>
+</html>
