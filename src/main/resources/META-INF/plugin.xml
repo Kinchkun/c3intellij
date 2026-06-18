@@ -168,5 +168,11 @@
             <add-to-group group-id="NewGroup"
                           anchor="first"/>
         </action>
+        <action id="C3MoveTypeToFileAction"
+                class="org.c3lang.intellij.actions.C3MoveTypeToFileAction"
+                text="Move Type to File..."
+                description="Move the type under the caret and its member functions into a new file in the same module.">
+            <add-to-group group-id="RefactoringMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>
