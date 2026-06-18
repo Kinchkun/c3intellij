@@ -1,5 +1,6 @@
 package org.c3lang.intellij.completion;
 
+import com.intellij.codeInsight.AutoPopupController;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
 import com.intellij.codeInsight.completion.CompletionResultSet;
@@ -108,19 +109,25 @@ public final class FunctionCompletionContributor extends CompletionProvider<Comp
             {
                 if (!(psiElement instanceof C3CallablePsiElement element)) continue;
 
-                double sameFileBonus = element.getSourceFileName().equals(containingFileName) ? 1.0 : 0.0;
-                double sameModuleBonus = java.util.Objects.equals(element.getModuleName(), moduleDefinition.getModuleName()) ? 1.0 : 0.0;
-                double importBonus = moduleDefinition.getVisibleModulePrefix(element.getModuleName()) != null ? 1.0 : 0.0;
-
                 FullyQualifiedName fqName = element.getFqName();
-                double nameDegree = CompletionExtensionsKt.matchingDegreeOrZero(matcher, fqName.getFullName());
-                ModuleName elementModule = element.getModuleName();
-                double moduleDegree = elementModule != null
-                    ? CompletionExtensionsKt.matchingDegreeOrZero(matcher, elementModule.getValue())
-                    : 0.0;
-                double typeDegree = 0.0;
+                // Rank by how well the typed text matches what the user is actually typing: the
+                // simple name for a bare identifier, the qualified name once they type a `module::`
+                // path. Matching the typed text against the module name (as before) wrongly boosted
+                // e.g. `log::*` when typing `loa`.
+                boolean qualified = lookupString.contains("::");
+                double nameDegree = CompletionExtensionsKt.matchingDegreeOrZero(
+                    matcher, qualified ? fqName.getFullName() : fqName.getName());
 
-                double priority = sameFileBonus + sameModuleBonus + importBonus + moduleDegree + nameDegree + typeDegree;
+                // Closeness breaks ties between equally good matches: own file > own module >
+                // imported > standard library.
+                double closeness;
+                if (element.getSourceFileName().equals(containingFileName)) closeness = 3.0;
+                else if (java.util.Objects.equals(element.getModuleName(), moduleDefinition.getModuleName())) closeness = 2.0;
+                else if (moduleDefinition.getVisibleModulePrefix(element.getModuleName()) != null) closeness = 1.0;
+                else closeness = 0.0;
+
+                // Match quality dominates; closeness only decides between similarly-scoring names.
+                double priority = nameDegree * 10.0 + closeness;
                 result.addElement(
                     PrioritizedLookupElement.withPriority(
                         createLookupElementBuilder(moduleDefinition, element, fqName, insertHandler),
@@ -149,25 +156,44 @@ public final class FunctionCompletionContributor extends CompletionProvider<Comp
             PsiElement psiElement = item.getPsiElement();
             if (!(psiElement instanceof C3CallablePsiElement element)) return;
 
+            boolean hasParameters = !element.getParameterTypes().isEmpty();
+
             WriteCommandAction.runWriteCommandAction(context.getProject(), () -> {
                 AddImportQuickFix.ImportAction importAction =
                     AddImportQuickFix.Companion.addImportAsText(element, moduleDefinition);
 
                 ModuleName importModuleName = importAction != null ? importAction.getModuleName() : null;
-                String textToInsert = moduleDefinition.textToInsert(importModuleName, element);
+                String name = moduleDefinition.textToInsert(importModuleName, element);
+
+                var document = context.getDocument();
+                int start = range.getStartOffset();
                 int endOffset = context.getEditor().getCaretModel().getOffset();
 
-                context.getDocument().replaceString(
-                    range.getStartOffset(),
-                    endOffset,
-                    textToInsert
-                );
+                // Complete a call: append "()" unless the user already typed an opening paren.
+                CharSequence chars = document.getCharsSequence();
+                boolean hasOpeningParen = endOffset < chars.length() && chars.charAt(endOffset) == '(';
+
+                document.replaceString(start, endOffset, hasOpeningParen ? name : name + "()");
+
+                // Caret inside the parentheses, or after them for a no-argument call. Set before the
+                // import is written so the import insertion above shifts the caret along with it.
+                int caretOffset = (hasOpeningParen || hasParameters)
+                    ? start + name.length() + 1
+                    : start + name.length() + 2;
+                context.getEditor().getCaretModel().moveToOffset(caretOffset);
 
                 if (importAction != null)
                 {
-                    importAction.write(context.getDocument());
+                    importAction.write(document);
                 }
             });
+
+            // Pop up the parameter hint so the user sees what to fill in between the parentheses.
+            if (hasParameters)
+            {
+                AutoPopupController.getInstance(context.getProject())
+                    .autoPopupParameterInfo(context.getEditor(), element);
+            }
         }
     }
 

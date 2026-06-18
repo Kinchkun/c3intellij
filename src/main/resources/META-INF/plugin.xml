@@ -81,6 +81,8 @@
                             implementationClass="org.c3lang.intellij.completion.C3CompletionContributor" />
     <codeInsight.lineMarkerProvider language="C3"
                                     implementationClass="org.c3lang.intellij.C3LineMarkerProvider" />
+    <codeInsight.parameterInfo language="C3"
+                               implementationClass="org.c3lang.intellij.C3ParameterInfoHandler" />
     <consoleFilterProvider implementation="org.c3lang.intellij.C3ConsoleFilterProvider" />
     <multiHostInjector implementation="org.c3lang.intellij.injection.C3LanguageInjector" />
     <!--<completion.contributor language="C3"

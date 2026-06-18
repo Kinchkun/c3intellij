@@ -97,7 +97,10 @@ public final class ModuleName
 
         public @Nullable ModuleName from(@NotNull C3PsiElement psi)
         {
-            C3ModuleSection moduleSection = PsiTreeUtil.getParentOfType(psi, C3ModuleSection.class, true);
+            // Non-strict: when {@code psi} is itself the module section (e.g. resolving a module
+            // definition's own name), it must return that module — not search for an enclosing one
+            // that does not exist. Otherwise same-module references across files fail to resolve.
+            C3ModuleSection moduleSection = PsiTreeUtil.getParentOfType(psi, C3ModuleSection.class, false);
             if (moduleSection == null) return null;
             return new ModuleName(moduleSection.getModule().getModulePath().getText());
         }
