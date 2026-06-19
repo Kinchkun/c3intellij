@@ -3,6 +3,7 @@ package org.c3lang.intellij;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,5 +60,37 @@ public final class C3ProjectManifest
         }
 
         return result;
+    }
+
+    /**
+     * The {@code "output"} directory declared in {@code project.json} (where {@code c3c} writes built
+     * binaries), or {@code "build"} when unspecified or unreadable — the C3 default.
+     */
+    public static @NotNull String outputDirectory(String projectDirectory)
+    {
+        String fallback = "build";
+        if (projectDirectory == null || projectDirectory.isEmpty()) return fallback;
+
+        Path manifest = Path.of(projectDirectory, "project.json");
+        if (!Files.isRegularFile(manifest)) return fallback;
+
+        try
+        {
+            JsonElement root = JsonParser.parseString(Files.readString(manifest));
+            if (root.isJsonObject())
+            {
+                JsonElement output = root.getAsJsonObject().get("output");
+                if (output != null && output.isJsonPrimitive() && !output.getAsString().isBlank())
+                {
+                    return output.getAsString();
+                }
+            }
+        }
+        catch (Exception ignored)
+        {
+            // Fall through to the default.
+        }
+
+        return fallback;
     }
 }

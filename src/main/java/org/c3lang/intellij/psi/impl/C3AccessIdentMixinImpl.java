@@ -195,12 +195,14 @@ public abstract class C3AccessIdentMixinImpl extends C3PsiNamedElementImpl imple
 			List<String> idents = new ArrayList<>();
 			for (C3PsiElement elem : accessSequence)
 			{
-				if (elem instanceof C3CallExpr)
-				{
-					String text = elem.getText();
-					String[] parts = text.split("\\.");
-					idents.add(parts[parts.length - 1]);
-				}
+				if (!(elem instanceof C3CallExpr)) continue;
+
+				// Take the member name from this call level's `.name` access-ident PSI rather than by
+				// splitting the call text: an invocation tail `(args)` contributes no member, and
+				// arguments may contain their own dots (e.g. `Enum.CONST`), which corrupted the split.
+				C3CallExprTail tail = PsiTreeUtil.getChildOfType(elem, C3CallExprTail.class);
+				C3AccessIdent access = tail != null ? PsiTreeUtil.getChildOfType(tail, C3AccessIdent.class) : null;
+				if (access != null && access.getNameIdent() != null) idents.add(access.getNameIdent());
 			}
 			Collections.reverse(idents);
 

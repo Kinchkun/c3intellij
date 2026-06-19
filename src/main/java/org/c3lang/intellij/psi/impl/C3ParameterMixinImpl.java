@@ -3,6 +3,8 @@ package org.c3lang.intellij.psi.impl;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
+import com.intellij.psi.util.PsiTreeUtil;
+import org.c3lang.intellij.psi.C3FuncDef;
 import org.c3lang.intellij.psi.C3Parameter;
 import org.c3lang.intellij.psi.C3Type;
 import org.c3lang.intellij.psi.FullyQualifiedName;
@@ -62,6 +64,16 @@ public abstract class C3ParameterMixinImpl extends C3PsiNamedElementImpl impleme
 	public @Nullable FullyQualifiedName findTypeName()
 	{
 		C3Type type = getType();
-		return type != null ? FullyQualifiedName.Companion.from(type) : null;
+		if (type != null) return FullyQualifiedName.Companion.from(type);
+
+		// An implicit method receiver (`&self`/`self`) carries no written type; its type is the
+		// receiver type of the enclosing method, i.e. `Receiver` in `fn ... Receiver.name(&self, ...)`.
+		if ("self".equals(getName()))
+		{
+			C3FuncDef funcDef = PsiTreeUtil.getParentOfType(this, C3FuncDef.class);
+			C3Type receiver = funcDef != null ? funcDef.getFuncHeader().getFuncName().getType() : null;
+			if (receiver != null) return FullyQualifiedName.Companion.from(receiver);
+		}
+		return null;
 	}
 }

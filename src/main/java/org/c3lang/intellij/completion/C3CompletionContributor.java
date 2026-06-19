@@ -12,6 +12,9 @@ public final class C3CompletionContributor extends CompletionContributor
 	{
 		var pattern = psiElement();
 
+		// First: after `EnumType.` only the enum's constants are valid, and this provider stops the
+		// chain so the broken-parse position doesn't also draw type/value completions.
+		extend(CompletionType.BASIC, pattern, EnumAccessCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, LocalCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, FunctionCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, NamedArgumentCompletionContributor.INSTANCE);

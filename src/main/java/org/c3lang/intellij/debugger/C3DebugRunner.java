@@ -25,6 +25,7 @@ import com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess;
 import org.c3lang.intellij.C3BuildRunConfiguration;
 import org.c3lang.intellij.C3CommandRunConfiguration;
 import org.c3lang.intellij.C3CompileRunConfiguration;
+import org.c3lang.intellij.C3ProjectManifest;
 import org.c3lang.intellij.C3SettingsState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -33,7 +34,6 @@ import org.jetbrains.concurrency.Promise;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -89,11 +89,7 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 			// mirroring `c3c run <target> <args>`. The debuggee then receives the "Program arguments".
 			String target = configuration.getTarget();
 			if (target != null && !target.isBlank()) buildArguments.add(target.trim());
-			String buildArgs = configuration.getArgs();
-			if (buildArgs != null && !buildArgs.isBlank())
-			{
-				buildArguments.addAll(Arrays.asList(buildArgs.trim().split(" ")));
-			}
+			addBuildArgs(buildArguments, configuration.getArgs());
 			binaryArgs = configuration.getProgramArgs();
 		}
 		else if (profile instanceof C3CompileRunConfiguration configuration)
@@ -111,11 +107,7 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 			workingDirectory = configuration.getWorkingDirectory();
 			binaryArgs = null;
 			buildArguments.add("test");
-			String testArgs = configuration.getArgs();
-			if (testArgs != null && !testArgs.isEmpty())
-			{
-				buildArguments.addAll(Arrays.asList(testArgs.split(" ")));
-			}
+			addBuildArgs(buildArguments, configuration.getArgs());
 			buildArguments.add("--suppress-run"); // build the test binary, don't run it
 		}
 		else
@@ -127,6 +119,10 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 		ApplicationManager.getApplication().invokeLater(() ->
 			FileDocumentManager.getInstance().saveAllDocuments());
 
+		// Where c3c is expected to write the binary, used when the build output doesn't name the
+		// executable (e.g. a quiet `-q` build suppresses the "linked to executable '...'" line).
+		final String expectedExecutable = expectedExecutable(profile, workingDirectory);
+
 		ApplicationManager.getApplication().executeOnPooledThread(() -> {
 			try
 			{
@@ -135,7 +131,17 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 					.withWorkDirectory(workingDirectory);
 				ProcessOutput output = ExecUtil.execAndGetOutput(buildCommand);
 
+				if (output.getExitCode() != 0)
+				{
+					// Don't fall back to a (possibly stale) binary when the build actually failed.
+					promise.setError(new ExecutionException(
+						"`" + sdk + " " + String.join(" ", buildArguments) + "` failed (exit "
+							+ output.getExitCode() + "):\n" + output.getStdout() + output.getStderr()));
+					return;
+				}
+
 				String executable = parseExecutable(output, workingDirectory);
+				if (executable == null) executable = resolveExisting(expectedExecutable);
 				if (executable == null)
 				{
 					promise.setError(new ExecutionException(
@@ -195,6 +201,47 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 				}
 			},
 			environment);
+	}
+
+	/**
+	 * Appends the user's c3c flags to the build command, dropping {@code -q}/{@code --quiet}: a quiet
+	 * build suppresses the "linked to executable '...'" line the runner relies on, and quiet output is
+	 * unwanted when debugging anyway.
+	 */
+	private static void addBuildArgs(@NotNull List<String> buildArguments, @Nullable String args)
+	{
+		if (args == null || args.isBlank()) return;
+		for (String arg : args.trim().split(" "))
+		{
+			if (arg.isEmpty() || arg.equals("-q") || arg.equals("--quiet")) continue;
+			buildArguments.add(arg);
+		}
+	}
+
+	/**
+	 * The binary path c3c is expected to produce for a build configuration, derived from the
+	 * {@code project.json} output directory and the selected target, or null when it can't be
+	 * determined (e.g. no explicit target). Used as a fallback when the build output is quiet.
+	 */
+	private static @Nullable String expectedExecutable(@NotNull RunProfile profile, @NotNull String workingDirectory)
+	{
+		if (!(profile instanceof C3BuildRunConfiguration configuration)) return null;
+
+		String target = configuration.getTarget();
+		if (target == null || target.isBlank()) return null;
+
+		String output = C3ProjectManifest.outputDirectory(workingDirectory);
+		return new File(new File(workingDirectory, output), target.trim()).getPath();
+	}
+
+	/** Returns {@code path} (or its {@code .exe} variant) if it exists as a file, else null. */
+	private static @Nullable String resolveExisting(@Nullable String path)
+	{
+		if (path == null) return null;
+		File file = new File(path);
+		if (file.isFile()) return file.getAbsolutePath();
+		File windows = new File(path + ".exe");
+		return windows.isFile() ? windows.getAbsolutePath() : null;
 	}
 
 	private static @Nullable String parseExecutable(@NotNull ProcessOutput output, @NotNull String workingDirectory)
