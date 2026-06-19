@@ -29,6 +29,7 @@ import org.c3lang.intellij.psi.C3MacroDefinition;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
 import org.c3lang.intellij.psi.C3ParamDecl;
 import org.c3lang.intellij.psi.C3ParamPathElement;
+import org.c3lang.intellij.psi.C3PathAtIdentExpr;
 import org.c3lang.intellij.psi.C3PathIdentExpr;
 import org.c3lang.intellij.psi.C3PsiElement;
 import org.c3lang.intellij.psi.C3Types;
@@ -60,7 +61,9 @@ public final class FunctionCompletionContributor extends CompletionProvider<Comp
             psiElement().andNot(
                 psiElement().inside(C3ParamPathElement.class)
             )
-        )
+        ),
+        // `@`-prefixed macro references, e.g. `@pool` before the user has typed the call parens.
+        psiElement().inside(C3PathAtIdentExpr.class)
     );
 
     private FunctionCompletionContributor()
@@ -86,7 +89,10 @@ public final class FunctionCompletionContributor extends CompletionProvider<Comp
         C3ModuleDefinition moduleDefinition = CompletionExtensionsKt.getModuleDefinition(parameters);
         if (moduleDefinition == null) return;
 
-        C3PathIdentExpr lookupTarget = CompletionExtensionsKt.siblingOf(parameters, C3PathIdentExpr.class);
+        // The lookup target is the identifier expression being typed: a plain `path_ident_expr`
+        // or, for `@`-prefixed macros, a `path_at_ident_expr` (whose text includes the leading `@`).
+        PsiElement lookupTarget = CompletionExtensionsKt.siblingOf(parameters, C3PathIdentExpr.class);
+        if (lookupTarget == null) lookupTarget = CompletionExtensionsKt.siblingOf(parameters, C3PathAtIdentExpr.class);
         if (lookupTarget == null) return;
 
         String lookupString = CompletionExtensionsKt.getLookupString(parameters, lookupTarget);

@@ -58,6 +58,7 @@
     <lang.psiStructureViewFactory language="C3"
                                   implementationClass="org.c3lang.intellij.structure.C3StructureViewFactory"/>
     <gotoSymbolContributor implementation="org.c3lang.intellij.C3SymbolContributor"/>
+    <gotoDeclarationHandler implementation="org.c3lang.intellij.navigation.C3AtMacroGotoDeclarationHandler"/>
     <lang.documentationProvider language="C3"
                                 implementationClass="org.c3lang.intellij.docs.C3DocumentationProvider" />
     <psi.referenceContributor language="C3"
@@ -107,6 +108,12 @@
                      enabledByDefault="true"
                      level="ERROR"
                      implementationClass="org.c3lang.intellij.intention.C3InterfaceImplementationInspection" />
+    <localInspection language="C3"
+                     displayName="Unresolved type"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="ERROR"
+                     implementationClass="org.c3lang.intellij.intention.C3UnresolvedTypeInspection" />
     <localInspection language="C3"
                      enabledByDefault="true"
                      displayName="Log references"
@@ -177,6 +184,9 @@
  
     <postStartupActivity implementation="org.c3lang.intellij.actions.StartupAction" />
 
+    <projectService serviceImplementation="org.c3lang.intellij.autorerun.C3AutoRerunService"/>
+    <postStartupActivity implementation="org.c3lang.intellij.autorerun.C3AutoRerunStartupActivity"/>
+
     <!--<gotoDeclarationHandler implementation="org.c3lang.intellij.actions.C3GotoDeclarationHandler"/>-->
     <!--<findUsagesHandlerFactory implementation="org.c3lang.intellij.findUsages.C3FindUsagesHandlerFactory" />-->
     <!--<gotoSymbolContributor implementation="org.intellij.sdk.language.SimpleChooseByNameContributor"/>-->
@@ -184,7 +194,24 @@
     <!--<langCodeStyleSettingsProvider implementation="org.intellij.sdk.language.SimpleLanguageCodeStyleSettingsProvider"/>-->
   </extensions>
 
+    <applicationListeners>
+        <listener class="org.c3lang.intellij.autorerun.C3AutoRerunFileListener"
+                  topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
+    </applicationListeners>
+
     <actions>
+        <action id="C3.ToggleAutoRerun"
+                class="org.c3lang.intellij.autorerun.C3ToggleAutoRerunAction"
+                icon="AllIcons.Actions.Rerun"
+                text="Auto-Rerun C3 on Change"
+                description="When enabled, automatically save and re-run the selected C3 run/test configuration shortly after you stop typing in a C3 file (or when project.json changes).">
+            <!-- New UI run widget: sit between the config selector and the Run button. -->
+            <add-to-group group-id="RunToolbarMainActionGroup" anchor="before"
+                          relative-to-action="RunToolbarTopLevelExecutorActionGroup"/>
+            <!-- Classic UI main toolbar run cluster. -->
+            <add-to-group group-id="ToolbarRunGroup" anchor="first"/>
+            <add-to-group group-id="RunMenu" anchor="last"/>
+        </action>
         <action id="C3NewInterfaceFileAction"
                 class="org.c3lang.intellij.actions.C3NewInterfaceFileAction"
                 text="C3 Interface File">

@@ -84,8 +84,17 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 		if (profile instanceof C3BuildRunConfiguration configuration)
 		{
 			workingDirectory = configuration.getWorkingDirectory();
-			binaryArgs = configuration.getArgs();
 			buildArguments.add("build");
+			// Build the selected target with the configured c3c flags (the "Additional arguments"),
+			// mirroring `c3c run <target> <args>`. The debuggee then receives the "Program arguments".
+			String target = configuration.getTarget();
+			if (target != null && !target.isBlank()) buildArguments.add(target.trim());
+			String buildArgs = configuration.getArgs();
+			if (buildArgs != null && !buildArgs.isBlank())
+			{
+				buildArguments.addAll(Arrays.asList(buildArgs.trim().split(" ")));
+			}
+			binaryArgs = configuration.getProgramArgs();
 		}
 		else if (profile instanceof C3CompileRunConfiguration configuration)
 		{

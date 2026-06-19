@@ -1,6 +1,7 @@
 package org.c3lang.intellij.completion;
 
 import com.intellij.codeInsight.completion.CompletionParameters;
+import com.intellij.openapi.util.RecursionManager;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
@@ -55,6 +56,15 @@ public final class CompletionExtensionsKt
 	}
 
 	public static @Nullable FullyQualifiedName getRootType(@NotNull PsiElement lookupTarget)
+	{
+		// Resolving the receiver's type can re-enter this method for the same element via
+		// getReference() -> isStructMemberAccess() -> getRootType() -> getReference(): an unresolved
+		// receiver (e.g. `unknownvar.field`) loops forever and overflows the stack. The guard returns
+		// null on re-entry, breaking the cycle without affecting non-recursive lookups.
+		return RecursionManager.doPreventingRecursion(lookupTarget, false, () -> getRootTypeInner(lookupTarget));
+	}
+
+	private static @Nullable FullyQualifiedName getRootTypeInner(@NotNull PsiElement lookupTarget)
 	{
 		C3CompoundInitExpr compoundInitExpr =
 			PsiTreeUtil.getParentOfType(lookupTarget, C3CompoundInitExpr.class);
