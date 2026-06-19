@@ -69,8 +69,7 @@
     <enterHandlerDelegate implementation="org.c3lang.intellij.C3DocCommentEnterHandler" />
     <lang.elementManipulator implementationClass="org.c3lang.intellij.psi.NamedElementManipulator"
                              forClass="org.c3lang.intellij.psi.C3PsiNamedElement" />
-    <!--<lang.refactoringSupport language="C3"
-                                 implementationClass="org.c3lang.intellij.C3RefactoringSupportProvider"/>-->
+    <renameHandler implementation="org.c3lang.intellij.refactoring.C3ModuleRenameHandler"/>
     <!--<lang.foldingBuilder language="JAVA"
                              implementationClass="org.intellij.sdk.language.SimpleFoldingBuilder"/>-->
     <!--<lang.psiStructureViewFactory language="Simple"

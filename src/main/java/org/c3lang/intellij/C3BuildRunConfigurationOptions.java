@@ -8,8 +8,34 @@ public class C3BuildRunConfigurationOptions extends RunConfigurationOptions {
     private final StoredProperty<String> myWorkingDirectory =
             string("").provideDelegate(this, "workingDirectory");
 
+    private final StoredProperty<String> myTarget =
+            string("").provideDelegate(this, "target");
+
     private final StoredProperty<String> myArgs =
             string("").provideDelegate(this, "args");
+
+    private final StoredProperty<String> myProgramArgs =
+            string("").provideDelegate(this, "programArgs");
+
+    public String getTarget()
+    {
+        return myTarget.getValue(this);
+    }
+
+    public void setTarget(String target)
+    {
+        myTarget.setValue(this, target);
+    }
+
+    public String getProgramArgs()
+    {
+        return myProgramArgs.getValue(this);
+    }
+
+    public void setProgramArgs(String programArgs)
+    {
+        myProgramArgs.setValue(this, programArgs);
+    }
 
     public String getWorkingDirectory()
     {

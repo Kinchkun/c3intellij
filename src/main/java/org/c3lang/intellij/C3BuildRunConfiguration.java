@@ -40,6 +40,16 @@ public class C3BuildRunConfiguration extends RunConfigurationBase<C3CompileRunCo
         getOptions().setWorkingDirectory(workingDirectory);
     }
 
+    public String getTarget()
+    {
+        return getOptions().getTarget();
+    }
+
+    public void setTarget(String target)
+    {
+        getOptions().setTarget(target);
+    }
+
     public String getArgs()
     {
         return getOptions().getArgs();
@@ -48,6 +58,16 @@ public class C3BuildRunConfiguration extends RunConfigurationBase<C3CompileRunCo
     public void setArgs(String args)
     {
         getOptions().setArgs(args);
+    }
+
+    public String getProgramArgs()
+    {
+        return getOptions().getProgramArgs();
+    }
+
+    public void setProgramArgs(String programArgs)
+    {
+        getOptions().setProgramArgs(programArgs);
     }
 
     @Override public void checkConfiguration()
@@ -62,11 +82,22 @@ public class C3BuildRunConfiguration extends RunConfigurationBase<C3CompileRunCo
                 String sdk = C3SettingsState.getInstance().sdk;
                 GeneralCommandLine commandLine = new GeneralCommandLine(sdk, "run");
 
+                // Run a specific executable target, e.g. `c3c run my_target`.
+                if (getTarget() != null && !getTarget().isBlank()) commandLine.addParameter(getTarget().trim());
+
                 // I couldn't just add the whole args string here because the GeneralCommandLine class adds quotes
                 // around parameters with spaces (so it would look like this: c3c run "--param value" which isn't valid
                 // syntax).
                 // Instead, I'm splitting the args string by spaces and adding that array.
-                if (getArgs() != null) commandLine.addParameters(getArgs().split(" "));
+                if (getArgs() != null && !getArgs().isBlank()) commandLine.addParameters(getArgs().trim().split(" "));
+
+                // Everything after `--` is forwarded to the compiled program:
+                // `c3c run <target> <args> -- <program args>`.
+                if (getProgramArgs() != null && !getProgramArgs().isBlank())
+                {
+                    commandLine.addParameter("--");
+                    commandLine.addParameters(getProgramArgs().trim().split(" "));
+                }
 
                 commandLine.setWorkDirectory(getWorkingDirectory());
 

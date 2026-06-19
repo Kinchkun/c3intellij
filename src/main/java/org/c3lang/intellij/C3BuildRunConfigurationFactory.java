@@ -28,7 +28,7 @@ public class C3BuildRunConfigurationFactory extends ConfigurationFactory
 
     @Override public @NotNull String getName()
     {
-        return "Run Project";
+        return "Run Executable";
     }
 
     @Override public @NotNull RunConfiguration createTemplateConfiguration(@NotNull Project project)
