@@ -131,6 +131,12 @@
                      enabledByDefault="true"
                      level="ERROR"
                      implementationClass="org.c3lang.intellij.intention.C3NamedArgumentInspection" />
+    <localInspection language="C3"
+                     displayName="Duplicate variable declaration"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="ERROR"
+                     implementationClass="org.c3lang.intellij.intention.C3DuplicateVariableInspection" />
     <!-- TODO: Enable after grammar rewrite -->
     <!--<localInspection language="C3"
                          enabledByDefault="true"

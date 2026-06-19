@@ -1,0 +1,14 @@
+<html>
+<body>
+Reports a local variable that is declared more than once in the same block scope.
+<p>C3 does not allow redeclaring a variable in the same scope; the second declaration is an error.</p>
+<pre><code>
+fn void f()
+{
+    int a = 1;
+    int a = 2; // 'a' is already defined in the scope
+}
+</code></pre>
+<p>A variable that shadows one from an enclosing block (a different scope) is not reported.</p>
+</body>
+</html>
