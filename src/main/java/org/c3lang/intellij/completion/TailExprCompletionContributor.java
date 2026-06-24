@@ -1,8 +1,12 @@
 package org.c3lang.intellij.completion;
 
+import com.intellij.codeInsight.AutoPopupController;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
 import com.intellij.codeInsight.completion.CompletionResultSet;
+import com.intellij.codeInsight.completion.InsertHandler;
+import com.intellij.codeInsight.completion.InsertionContext;
+import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.patterns.ElementPattern;
 import com.intellij.psi.PsiElement;
@@ -109,12 +113,7 @@ public final class TailExprCompletionContributor extends CompletionProvider<Comp
 			if (methodName.isEmpty() || methodName.contains(".")) continue;
 			if (!seen.add(methodName)) continue;
 
-			result.addElement(
-				LookupElementBuilder.create(methodName)
-					.withPresentableText(methodName)
-					.withIcon(AllIcons.Nodes.Method)
-					.withTailText("()", true)
-			);
+			result.addElement(methodLookupElement(callable, methodName));
 		}
 
 		// Interface methods are declared as bare func_defs inside the interface body, so they have
@@ -125,12 +124,65 @@ public final class TailExprCompletionContributor extends CompletionProvider<Comp
 			String methodName = C3Interfaces.methodSimpleName(method);
 			if (methodName == null || methodName.contains(".") || !seen.add(methodName)) continue;
 
-			result.addElement(
-				LookupElementBuilder.create(methodName)
-					.withPresentableText(methodName)
-					.withIcon(AllIcons.Nodes.Method)
-					.withTailText("()", true)
-			);
+			result.addElement(methodLookupElement(method, methodName));
+		}
+	}
+
+	/**
+	 * Builds a method completion that inserts the call parentheses. The receiver is the method's
+	 * first parameter, but with method-call syntax it is supplied implicitly, so the caret only
+	 * belongs inside the parens when the method takes a further argument.
+	 */
+	private static @NotNull LookupElementBuilder methodLookupElement(
+		@NotNull C3CallablePsiElement element,
+		@NotNull String methodName)
+	{
+		boolean hasArguments = element.getParameterTypes().size() > 1;
+		return LookupElementBuilder.create(element, methodName)
+			.withPresentableText(methodName)
+			.withIcon(AllIcons.Nodes.Method)
+			.withTailText("()", true)
+			.withInsertHandler(new MethodInsertHandler(hasArguments));
+	}
+
+	/** Appends "()" after a method name and positions the caret for the call. */
+	private static final class MethodInsertHandler implements InsertHandler<LookupElement>
+	{
+		private final boolean hasArguments;
+
+		private MethodInsertHandler(boolean hasArguments)
+		{
+			this.hasArguments = hasArguments;
+		}
+
+		@Override
+		public void handleInsert(@NotNull InsertionContext context, @NotNull LookupElement item)
+		{
+			var document = context.getDocument();
+			int tailOffset = context.getTailOffset();
+
+			// Append "()" unless the user already typed an opening paren.
+			CharSequence chars = document.getCharsSequence();
+			boolean hasOpeningParen = tailOffset < chars.length() && chars.charAt(tailOffset) == '(';
+			if (!hasOpeningParen)
+			{
+				document.insertString(tailOffset, "()");
+			}
+
+			// Caret inside the parens when there is an argument to fill, after them otherwise.
+			int caretOffset = (hasArguments || hasOpeningParen) ? tailOffset + 1 : tailOffset + 2;
+			context.getEditor().getCaretModel().moveToOffset(caretOffset);
+			context.commitDocument();
+
+			if (hasArguments)
+			{
+				PsiElement element = item.getPsiElement();
+				if (element != null)
+				{
+					AutoPopupController.getInstance(context.getProject())
+						.autoPopupParameterInfo(context.getEditor(), element);
+				}
+			}
 		}
 	}
 }

@@ -285,6 +285,7 @@ SHEBANG_COMMENT = "#!" .*
     "``" { }
     "`"  { yybegin(YYINITIAL); return C3Types.STRING_LIT; }
     [\n\r] { }
+    <<EOF>> { yybegin(YYINITIAL); return C3Types.STRING_LIT; } // Unterminated: still emit a token.
     . {}
 
 }
@@ -293,6 +294,7 @@ SHEBANG_COMMENT = "#!" .*
     "`" {WHITESPACE}* ([\r\n] {WHITESPACE}*)* "`" { } // Wrapping
     "`"  { yybegin(YYINITIAL); return C3Types.BYTES; }
     [\n\r] { }
+    <<EOF>> { yybegin(YYINITIAL); return C3Types.BYTES; } // Unterminated: still emit a token.
     . {}
 }
 
@@ -302,6 +304,7 @@ SHEBANG_COMMENT = "#!" .*
     [^\x00-\x1f\\\']+ { }
     [\r\n] { yybegin(YYINITIAL); return TokenType.BAD_CHARACTER; }
     "\\" [^\x00-\x1f] {  }
+    <<EOF>> { yybegin(YYINITIAL); return C3Types.CHAR_LIT; } // Unterminated: still emit a token.
     . { return TokenType.BAD_CHARACTER; }
 }
 
@@ -310,6 +313,7 @@ SHEBANG_COMMENT = "#!" .*
     "\'" { yybegin(YYINITIAL); return C3Types.BYTES; }
     [^\x00-\x1f\']+ { }
     [\r\n] { yybegin(YYINITIAL); return TokenType.BAD_CHARACTER; }
+    <<EOF>> { yybegin(YYINITIAL); return C3Types.BYTES; } // Unterminated: still emit a token.
     . { return TokenType.BAD_CHARACTER; }
 }
 
@@ -318,6 +322,7 @@ SHEBANG_COMMENT = "#!" .*
     [^\x00-\x1f\\\"]+ { }
     [\r\n] { yybegin(YYINITIAL); return TokenType.BAD_CHARACTER; }
     "\\" [^\x00-\x1f] {  }
+    <<EOF>> { yybegin(YYINITIAL); return C3Types.STRING_LIT; } // Unterminated: still emit a token.
     . { return TokenType.BAD_CHARACTER; }
 }
 
@@ -326,6 +331,7 @@ SHEBANG_COMMENT = "#!" .*
     "\"" { yybegin(YYINITIAL); return C3Types.BYTES; }
     [^\x00-\x1f\"]+ { }
     [\r\n] { yybegin(YYINITIAL); return TokenType.BAD_CHARACTER; }
+    <<EOF>> { yybegin(YYINITIAL); return C3Types.BYTES; } // Unterminated: still emit a token.
     . { return TokenType.BAD_CHARACTER; }
 }
 
