@@ -4,7 +4,6 @@ import com.intellij.psi.PsiErrorElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,7 +17,7 @@ import java.util.stream.Stream;
  * newest syntax, so this keeps the grammar in step with the compiler. The stdlib is read from
  * $C3_STDLIB, else from mise's c3c 0.8.5 install; without either the test is skipped.
  */
-public class C3StdlibParseTest extends BasePlatformTestCase
+public class C3StdlibParseTest extends C3TestCase
 {
 	private static Path stdlib()
 	{

@@ -1,12 +1,11 @@
 package org.c3lang.intellij;
 
 import com.intellij.codeInsight.daemon.GutterMark;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
 import java.util.List;
 
 /** Verifies the gutter run buttons for tests: per test function and for all tests of a module. */
-public class C3TestLineMarkerTest extends BasePlatformTestCase
+public class C3TestLineMarkerTest extends C3TestCase
 {
 	private List<String> gutterTooltips(String text)
 	{

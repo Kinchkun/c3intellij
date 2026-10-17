@@ -3,14 +3,13 @@ package org.c3lang.intellij;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.psi.C3PathIdent;
 
 /**
  * Guards against the StackOverflowError where resolving an unresolved member-access receiver
  * recursed: getReference -> isStructMemberAccess -> getRootType -> getReference -> ...
  */
-public class C3RecursionTest extends BasePlatformTestCase
+public class C3RecursionTest extends C3TestCase
 {
 	public void testUnresolvedReceiverDoesNotOverflow()
 	{

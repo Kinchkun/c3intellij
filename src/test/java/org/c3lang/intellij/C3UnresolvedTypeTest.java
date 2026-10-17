@@ -3,13 +3,12 @@ package org.c3lang.intellij;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.lang.annotation.HighlightSeverity;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.intention.C3UnresolvedTypeInspection;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-public class C3UnresolvedTypeTest extends BasePlatformTestCase
+public class C3UnresolvedTypeTest extends C3TestCase
 {
 	private static final String OBJECT = "module stunk::object;\nstruct Object { int x; }\n";
 

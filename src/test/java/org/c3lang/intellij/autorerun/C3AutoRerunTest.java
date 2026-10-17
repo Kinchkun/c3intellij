@@ -1,5 +1,7 @@
 package org.c3lang.intellij.autorerun;
 
+import org.c3lang.intellij.C3TestCase;
+
 import com.intellij.execution.RunManager;
 import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.configurations.ConfigurationFactory;
@@ -7,13 +9,12 @@ import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.C3ConfigurationType;
 
 import java.util.List;
 
 /** Verifies the decision logic behind auto-rerun: relevance, project gating, persistence, scheduling. */
-public class C3AutoRerunTest extends BasePlatformTestCase
+public class C3AutoRerunTest extends C3TestCase
 {
 	@Override
 	protected void setUp() throws Exception

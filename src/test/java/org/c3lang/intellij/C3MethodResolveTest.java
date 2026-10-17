@@ -3,11 +3,10 @@ package org.c3lang.intellij;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.psi.C3AccessIdent;
 import org.c3lang.intellij.psi.C3FuncDefinition;
 
-public class C3MethodResolveTest extends BasePlatformTestCase
+public class C3MethodResolveTest extends C3TestCase
 {
 	private PsiElement resolveSetOpt(String body)
 	{

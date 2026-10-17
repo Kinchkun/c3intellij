@@ -13,6 +13,11 @@ tasks.generateLexer {
     purgeOldFiles.set(true)
 }
 
+// Never package a plugin whose tests fail.
+tasks.buildPlugin {
+    dependsOn(tasks.test)
+}
+
 idea {
     module {
         generatedSourceDirs.add(file("src/main/gen"))

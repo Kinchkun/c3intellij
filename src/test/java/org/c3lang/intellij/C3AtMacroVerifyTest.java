@@ -2,13 +2,12 @@ package org.c3lang.intellij;
 
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationAction;
 import com.intellij.psi.PsiElement;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Verifies go-to-declaration and completion for `@`-prefixed macro references such as `@pool()`. */
-public class C3AtMacroVerifyTest extends BasePlatformTestCase
+public class C3AtMacroVerifyTest extends C3TestCase
 {
 	private static final String SRC =
 		"module app;\n" +

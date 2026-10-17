@@ -2,9 +2,8 @@ package org.c3lang.intellij;
 
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
-public class C3ResolveTest extends BasePlatformTestCase
+public class C3ResolveTest extends C3TestCase
 {
 	private static final String CURL =
 		"module curl;\n" +

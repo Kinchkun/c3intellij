@@ -3,7 +3,6 @@ package org.c3lang.intellij;
 import com.intellij.psi.PsiErrorElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -15,7 +14,7 @@ import java.util.stream.Collectors;
  * the expression syntax of @feat, @feat itself, a ternary in an alias, @tag on parameters,
  * a.$field / a.$eval($field), $vaarg[^1].
  */
-public class C3Syntax085Test extends BasePlatformTestCase
+public class C3Syntax085Test extends C3TestCase
 {
 	private void assertParses(@NotNull String code)
 	{

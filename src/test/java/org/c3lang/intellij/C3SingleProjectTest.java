@@ -1,12 +1,11 @@
 package org.c3lang.intellij;
 
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
 import java.util.List;
 
 /** The classic layout: one C3 project whose project.json sits at the IDE project root. */
-public class C3SingleProjectTest extends BasePlatformTestCase
+public class C3SingleProjectTest extends C3TestCase
 {
 	public void testRootManifestOwnsEverything()
 	{

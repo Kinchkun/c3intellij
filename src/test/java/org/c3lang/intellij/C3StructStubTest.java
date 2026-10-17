@@ -5,7 +5,6 @@ import com.intellij.psi.impl.source.PsiFileImpl;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.DumbModeTestUtils;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.psi.C3StructDeclaration;
 import org.c3lang.intellij.psi.C3StructMemberDeclaration;
 import org.c3lang.intellij.psi.FullyQualifiedName;
@@ -23,7 +22,7 @@ import java.util.List;
  * The field types recorded in the stubs therefore have to derive from the file text alone, and
  * must match what the AST-backed PSI computes in smart mode.
  */
-public class C3StructStubTest extends BasePlatformTestCase
+public class C3StructStubTest extends C3TestCase
 {
 	private static final String BAR = "module foo::bar;\nstruct Bar { int x; }\n";
 

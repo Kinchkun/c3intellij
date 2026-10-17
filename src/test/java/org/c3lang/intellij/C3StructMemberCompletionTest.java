@@ -1,11 +1,10 @@
 package org.c3lang.intellij;
 
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
 import java.util.List;
 
 /** Verifies struct member completion after `value.`, including the mystd args_test shapes. */
-public class C3StructMemberCompletionTest extends BasePlatformTestCase
+public class C3StructMemberCompletionTest extends C3TestCase
 {
 	private static final String ARGS =
 		"module mystd::args;\n" +

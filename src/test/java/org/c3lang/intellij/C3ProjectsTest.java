@@ -1,12 +1,11 @@
 package org.c3lang.intellij;
 
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
 import java.util.List;
 
 /** A workspace (monorepo) holding several C3 projects, like c3projects/{c3script,mystd}. */
-public class C3ProjectsTest extends BasePlatformTestCase
+public class C3ProjectsTest extends C3TestCase
 {
 	private VirtualFile script;
 	private VirtualFile stdArgs;

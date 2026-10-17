@@ -2,14 +2,13 @@ package org.c3lang.intellij;
 
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.findUsages.C3UsageTypeProvider;
 import org.c3lang.intellij.psi.C3BaseType;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class C3UsageTypeTest extends BasePlatformTestCase
+public class C3UsageTypeTest extends C3TestCase
 {
 	public void testTypeUsageClassification()
 	{

@@ -2,7 +2,6 @@ package org.c3lang.intellij;
 
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.lang.annotation.HighlightSeverity;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.intention.C3UnresolvedMethodInspection;
 import org.jetbrains.annotations.NotNull;
 
@@ -12,7 +11,7 @@ import java.util.List;
  * Tests for {@link C3UnresolvedMethodInspection}. Each "must not flag" case guards against a specific
  * false-positive class — add one whenever you find valid code being marked red.
  */
-public class C3UnresolvedMethodTest extends BasePlatformTestCase
+public class C3UnresolvedMethodTest extends C3TestCase
 {
 	/** A struct with a field and a method, used as the receiver in most cases. */
 	private static final String BASE =

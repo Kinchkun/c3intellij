@@ -1,11 +1,10 @@
 package org.c3lang.intellij;
 
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
 import java.util.List;
 
 /** Verifies enum-constant completion after `EnumType.` (across modules and with a typed prefix). */
-public class C3EnumCompletionTest extends BasePlatformTestCase
+public class C3EnumCompletionTest extends C3TestCase
 {
 	private static final String CURL =
 		"module curl;\nenum CurlOption : int\n{\n    WRITEDATA,\n    URL,\n}\n";

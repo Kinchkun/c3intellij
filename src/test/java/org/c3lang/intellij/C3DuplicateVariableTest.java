@@ -2,12 +2,11 @@ package org.c3lang.intellij;
 
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.lang.annotation.HighlightSeverity;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.c3lang.intellij.intention.C3DuplicateVariableInspection;
 
 import java.util.List;
 
-public class C3DuplicateVariableTest extends BasePlatformTestCase
+public class C3DuplicateVariableTest extends C3TestCase
 {
 	private long duplicateErrors(String body)
 	{

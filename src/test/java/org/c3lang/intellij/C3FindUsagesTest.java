@@ -1,9 +1,8 @@
 package org.c3lang.intellij;
 
 import com.intellij.psi.PsiElement;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
-public class C3FindUsagesTest extends BasePlatformTestCase
+public class C3FindUsagesTest extends C3TestCase
 {
 	private static final String SRC =
 		"module app;\n" +
