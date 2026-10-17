@@ -1,5 +1,12 @@
 package org.c3lang.intellij;
 
+import com.intellij.execution.DefaultExecutionResult;
+import com.intellij.execution.ExecutionResult;
+import com.intellij.execution.process.KillableProcessHandler;
+import com.intellij.execution.runners.ProgramRunner;
+import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil;
+import com.intellij.execution.ui.ConsoleView;
+import org.c3lang.intellij.testing.C3TestConsoleProperties;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
@@ -64,6 +71,12 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
         getOptions().setArgs(args);
     }
 
+    /** Whether this runs tests ({@code c3c test} or {@code c3c compile-test}), shown in the test tree. */
+    public boolean isTestCommand()
+    {
+        return "test".equals(command) || "compile-test".equals(command);
+    }
+
     @Override public void checkConfiguration()
     {
     }
@@ -71,6 +84,18 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
     @Override public @Nullable RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment executionEnvironment) throws ExecutionException
     {
         return new CommandLineState(executionEnvironment) {
+            @Override public @NotNull ExecutionResult execute(@NotNull Executor executor, @NotNull ProgramRunner<?> runner) throws ExecutionException
+            {
+                if (!isTestCommand()) return super.execute(executor, runner);
+
+                // Show the results in the test tree (green/red per test, jump to source).
+                ProcessHandler processHandler = startProcess();
+                ConsoleView console = SMTestRunnerConnectionUtil.createAndAttachConsole(
+                    C3TestConsoleProperties.FRAMEWORK, processHandler,
+                    new C3TestConsoleProperties(C3CommandRunConfiguration.this, executor));
+                return new DefaultExecutionResult(console, processHandler, createActions(console, processHandler, executor));
+            }
+
             @Override protected @NotNull ProcessHandler startProcess() throws ExecutionException
             {
                 String sdk = C3SettingsState.getInstance().sdk;
@@ -83,7 +108,17 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
 
                 commandLine.setWorkDirectory(getWorkingDirectory());
 
-                OSProcessHandler processHandler = ProcessHandlerFactory.getInstance().createColoredProcessHandler(commandLine);
+                OSProcessHandler processHandler;
+                if (isTestCommand())
+                {
+                    // The test tree parses the runner's output line by line: keep it free of ANSI colors.
+                    commandLine.withEnvironment("TERM", "dumb");
+                    processHandler = new KillableProcessHandler(commandLine);
+                }
+                else
+                {
+                    processHandler = ProcessHandlerFactory.getInstance().createColoredProcessHandler(commandLine);
+                }
                 ProcessTerminatedListener.attach(processHandler);
                 return processHandler;
             }

@@ -59,6 +59,29 @@ dependencies {
         // debugger integration (see cidrdebugger.xml); the base plugin stays compatible
         // with non-CLion IDEs because that integration is an optional dependency.
         bundledPlugins("com.intellij.nativeDebug")
+        // Test tree for `c3c test` output (SM test runner, part of the bundled Test Runner plugin).
+        bundledModules(
+            "intellij.platform.smRunner",
+            "intellij.platform.testRunner",
+            "intellij.libraries.teamcity.service.messages",
+        )
         testFramework(TestFrameworkType.Platform)
+    }
+}
+
+// `./gradlew verifyPlugin` checks the plugin against the local CLion (unresolved classes,
+// missing plugin.xml dependencies, internal API usage).
+intellijPlatform {
+    pluginVerification {
+        ides {
+            local(
+                file(
+                    providers.gradleProperty("clionPath")
+                        .orElse(providers.environmentVariable("CLION_PATH"))
+                        .orElse("/Users/kinch/Applications/CLion.app")
+                        .get()
+                )
+            )
+        }
     }
 }

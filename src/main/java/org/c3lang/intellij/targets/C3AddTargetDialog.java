@@ -42,7 +42,8 @@ final class C3AddTargetDialog extends DialogWrapper
 	{
 		super(project);
 		projectBox = new ComboBox<>(projects.toArray(VirtualFile[]::new));
-		projectBox.setRenderer(SimpleListCellRenderer.create("", dir -> dir.getName() + "  (" + dir.getPath() + ")"));
+		projectBox.setRenderer(SimpleListCellRenderer.create((label, dir, index) ->
+			label.setText(dir == null ? "" : dir.getName() + "  (" + dir.getPath() + ")")));
 		if (selected != null) projectBox.setSelectedItem(selected);
 		ButtonGroup kind = new ButtonGroup();
 		kind.add(executable);

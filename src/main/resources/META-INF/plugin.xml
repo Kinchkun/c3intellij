@@ -10,6 +10,8 @@
     ]]></description>
   
   <depends>com.intellij.modules.platform</depends>
+  <!-- SM test runner (test tree for c3c test), a separate bundled plugin since 2026.1. -->
+  <depends>intellij.testRunner.plugin</depends>
   <depends optional="true" config-file="cidrdebugger.xml">com.intellij.modules.cidr.debugger</depends>
 
   <extensions defaultExtensionNs="com.intellij">
