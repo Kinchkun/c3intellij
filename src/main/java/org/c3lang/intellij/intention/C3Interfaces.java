@@ -36,8 +36,6 @@ public final class C3Interfaces
 		if (impl == null) return List.of();
 
 		List<String> names = new ArrayList<>();
-		String first = impl.getTypeName().getName();
-		if (first != null) names.add(first);
 		for (C3Type type : impl.getTypeList())
 		{
 			names.add(lastSegment(type.getText()));

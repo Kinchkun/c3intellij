@@ -1,7 +1,6 @@
 package org.c3lang.intellij.psi.impl;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.openapi.project.DumbService;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.psi.*;
@@ -10,8 +9,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public abstract class C3ModuleDefinitionMixinImpl extends C3PsiElementImpl implements C3ModuleDefinition
 {
@@ -141,45 +142,67 @@ public abstract class C3ModuleDefinitionMixinImpl extends C3PsiElementImpl imple
 		return result;
 	}
 
+	/**
+	 * Resolves a type reference to its fully-qualified candidates using only this file's text:
+	 * primitives have no module, an unqualified name belongs to this module, and a path-qualified
+	 * name ({@code io::File}) belongs to whichever visible module (this one or an import) ends
+	 * with that path.
+	 *
+	 * <p>This deliberately does not consult the stub index. It runs while stubs are built
+	 * ({@link StructField}, {@code C3StructMemberDeclarationStub}), where index access throws
+	 * {@code IndexNotReadyException} during indexing and would make the stub content depend on
+	 * which other files happen to be indexed already.</p>
+	 */
 	@Override
 	public @NotNull List<FullyQualifiedName> resolve(@NotNull C3Type type)
 	{
-		if (type.getBaseType().isPrimitiveType())
+		C3BaseType baseType = type.getBaseType();
+		if (baseType.isPrimitiveType())
 		{
-			return Collections.singletonList(new FullyQualifiedName(null, type.getBaseType().getText()));
+			return Collections.singletonList(new FullyQualifiedName(null, baseType.getText()));
 		}
 
-		if (type.getBaseType().getPath() == null)
+		C3Path path = baseType.getPath();
+		if (path == null)
 		{
-			return Collections.singletonList(new FullyQualifiedName(getModuleName(), type.getBaseType().getText()));
+			return Collections.singletonList(new FullyQualifiedName(getModuleName(), baseType.getText()));
 		}
 
-		// The remaining resolution queries the stub index. During stub building (dumb
-		// mode) that throws IndexNotReadyException, so bail out with no result; callers
-		// fall back to the unresolved type text. (See C3StructDeclarationStub.)
-		if (DumbService.isDumb(getProject()))
-		{
-			return Collections.emptyList();
-		}
+		String modulePath = stripTrailingScope(path.getText());
+		String name = baseType.getText()
+			.substring(path.getStartOffsetInParent() + path.getTextLength())
+			.trim();
 
-		List<ModuleName> imports = new ArrayList<>();
+		Set<ModuleName> visibleModules = new LinkedHashSet<>();
+		ModuleName ownModule = getModuleName();
+		if (ownModule != null) visibleModules.add(ownModule);
 		for (C3ImportPath importPath : getImportPaths())
 		{
 			ModuleName mn = importPath.getModuleName();
-			if (mn != null) imports.add(mn);
+			if (mn != null) visibleModules.add(mn);
 		}
 
 		List<FullyQualifiedName> result = new ArrayList<>();
-		for (C3FullyQualifiedNamePsiElement element :
-			NameIndexService.INSTANCE.findByNameEndsWith(type.getText(), getProject()))
+		for (ModuleName module : visibleModules)
 		{
-			if (element.getFqName().getFullName().endsWith(type.getText())
-				&& imports.contains(element.getModuleName()))
+			if (endsWithPath(module, modulePath))
 			{
-				result.add(element.getFqName());
+				result.add(new FullyQualifiedName(module, name));
 			}
 		}
 		return result;
+	}
+
+	private static boolean endsWithPath(@NotNull ModuleName module, @NotNull String path)
+	{
+		String value = module.getValue();
+		return value.equals(path) || value.endsWith("::" + path);
+	}
+
+	private static @NotNull String stripTrailingScope(@NotNull String pathText)
+	{
+		String text = pathText.trim();
+		return text.endsWith("::") ? text.substring(0, text.length() - 2).trim() : text;
 	}
 
 	@Override

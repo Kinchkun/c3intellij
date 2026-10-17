@@ -12,6 +12,7 @@ public interface C3Types {
   IElementType ALIAS_DECL = new C3ElementType("ALIAS_DECL");
   IElementType ALIAS_DECLARATION_SOURCE = new C3ElementType("ALIAS_DECLARATION_SOURCE");
   IElementType ALIAS_NAME = new C3ElementType("ALIAS_NAME");
+  IElementType ALIAS_TERNARY = new C3ElementType("ALIAS_TERNARY");
   IElementType ALIAS_TYPE_DECL = new C3ElementType("ALIAS_TYPE_DECL");
   IElementType ARG = new C3ElementType("ARG");
   IElementType ARG_LIST = new C3ElementType("ARG_LIST");
@@ -215,6 +216,7 @@ public interface C3Types {
   IElementType CT_IDENT = new C3TokenType("CT_IDENT");
   IElementType CT_OR = new C3TokenType("CT_OR");
   IElementType CT_PLUS = new C3TokenType("CT_PLUS");
+  IElementType CT_PLUS_ASSIGN = new C3TokenType("CT_PLUS_ASSIGN");
   IElementType CT_TERNARY = new C3TokenType("CT_TERNARY");
   IElementType CT_TYPE_IDENT = new C3TokenType("CT_TYPE_IDENT");
   IElementType DIV = new C3TokenType("DIV");
@@ -373,6 +375,9 @@ public interface C3Types {
       }
       else if (type == ALIAS_NAME) {
         return new C3AliasNameImpl(node);
+      }
+      else if (type == ALIAS_TERNARY) {
+        return new C3AliasTernaryImpl(node);
       }
       else if (type == ALIAS_TYPE_DECL) {
         return new C3AliasTypeDeclImpl(node);

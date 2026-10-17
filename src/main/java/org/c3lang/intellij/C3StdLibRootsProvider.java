@@ -15,7 +15,7 @@ public class C3StdLibRootsProvider extends AdditionalLibraryRootsProvider
 	@Override public @NotNull Collection<SyntheticLibrary> getAdditionalProjectLibraries(@NotNull Project project)
 	{
 		var settings = C3SettingsState.getInstance();
-		var stdLibPath = settings.stdlibPath;
+		var stdLibPath = settings.stdlibRoot();
 
 		VirtualFile stdLibRoot = LocalFileSystem.getInstance().findFileByPath(stdLibPath);
 		if (stdLibRoot != null)

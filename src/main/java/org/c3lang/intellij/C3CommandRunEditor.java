@@ -30,7 +30,7 @@ public class C3CommandRunEditor extends SettingsEditor<C3CommandRunConfiguration
     {
         if (configuration.getWorkingDirectory().isEmpty())
         {
-            workingDirectoryField.setText(configuration.getProject().getBasePath());
+            workingDirectoryField.setText(C3Projects.defaultWorkingDirectory(configuration.getProject()));
         }
         else
         {

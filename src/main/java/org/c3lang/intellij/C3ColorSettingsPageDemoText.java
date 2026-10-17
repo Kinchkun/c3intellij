@@ -6,7 +6,7 @@ public final class C3ColorSettingsPageDemoText
 module stack <Type>;
 // Above: the parameterized type is applied to the entire module.
 
-faultdef FILE_NOT_FOUND, FILE_IS_DIR;
+excuse FILE_NOT_FOUND, FILE_IS_DIR;
 
 /* A block comment. */
 

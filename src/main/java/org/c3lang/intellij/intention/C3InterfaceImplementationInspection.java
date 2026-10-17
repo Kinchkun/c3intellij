@@ -52,7 +52,7 @@ public final class C3InterfaceImplementationInspection extends LocalInspectionTo
 					.map(C3Interfaces::methodSimpleName)
 					.collect(Collectors.joining(", "));
 
-				PsiElement problem = impl.getTypeName();
+				PsiElement problem = impl.getTypeList().isEmpty() ? impl : impl.getTypeList().get(0);
 				holder.registerProblem(
 					problem,
 					"Interface methods not implemented: " + methods,

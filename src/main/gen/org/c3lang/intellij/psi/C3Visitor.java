@@ -22,6 +22,10 @@ public class C3Visitor extends PsiElementVisitor {
     visitPsiElement(o);
   }
 
+  public void visitAliasTernary(@NotNull C3AliasTernary o) {
+    visitPsiElement(o);
+  }
+
   public void visitAliasTypeDecl(@NotNull C3AliasTypeDecl o) {
     visitPsiElement(o);
   }

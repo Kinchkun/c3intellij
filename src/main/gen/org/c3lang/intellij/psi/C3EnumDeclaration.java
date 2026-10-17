@@ -23,9 +23,15 @@ public interface C3EnumDeclaration extends C3PsiElement {
   C3InterfaceImpl getInterfaceImpl();
 
   @Nullable
+  C3Path getPath();
+
+  @Nullable
   C3Type getType();
 
   @NotNull
   C3TypeName getTypeName();
+
+  @NotNull
+  List<C3TypeSuffix> getTypeSuffixList();
 
 }

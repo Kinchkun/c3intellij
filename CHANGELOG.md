@@ -3,6 +3,23 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Workspaces with several C3 projects (e.g. a monorepo with `c3script/project.json` and `mystd/project.json` but none at the root): the gutter run/test buttons run the C3 project that owns the file (its nearest `project.json`) and name the configuration after it (`c3script: main`); new run configurations default to the C3 project of the open file; dependencies of every C3 project are indexed; New → C3 File is offered and uses that project's name as the module; compiler-output links pick the file whose path matches.
+- The gutter run button on `main` runs the `project.json` target whose `"sources"` contain the file (`c3c run git-check` for `apps/git-check/src/main.c3` in a workspace with several executable targets) instead of the default target; the gutter test button likewise passes the target whose `"test-sources"` contain the file (`c3c test git-check --test-filter …`).
+- The `module` line of a module with tests has a gutter button that runs all its tests (`c3c test --test-filter git_check::tests::`). Functions in a `module … @test;` module now get their own run buttons too, and a single test is filtered by its full name (`git_check::tests::sanity`) so same-named tests in other modules don't run with it.
+- An un-imported interface such as `OutStream` is reported as an unresolved type with an "Import std::io" quick fix, also inside `struct X (OutStream)`. The first interface of an implements list (`struct ByteWriter (OutStream)`) was parsed as a type declaration, so the stdlib seemed to declare `OutStream` in `std::core::dstring` and other modules and it counted as visible everywhere.
+- Libraries listed under `"dependencies"` in `project.json` are indexed, found via `"dependency-search-paths"` like `c3c` does (`<path>/<name>.c3l`, directory or archive), including libraries outside the project such as `"../mystd"`. Their declarations resolve, complete and support Go to Declaration. Editing `project.json` dependencies re-indexes without reopening the project.
+- Struct member completion (`value.`) and Go to Declaration on `value.field` now work when the struct is declared in an imported module (e.g. a `ParsedArgs` from `mystd::args` used in `mystd::args_test`). The variable's type was assumed to live in the current module, so no members were found.
+- When the stdlib path points to a compiler checkout or install root (a folder containing `lib/std`), only `lib/std` is indexed. Previously the compiler's test suite was indexed too, so quick fixes offered bogus imports such as "Import foo" for `List`.
+- File | New Project… offers "C3 Project" and "C3 Library" in CLion (and other IDEs whose New Project dialog uses directory project generators), not only in IntelliJ IDEA. The main file / library interface opens after creation. Project names with spaces or symbols now yield a valid module name (`My App` → `my_app`, `2d game` → `m_2d_game`); New → C3 File sanitizes the directory name the same way (`c3-workspace` → `c3_workspace`), and existing files in the target directory are never overwritten.
+- C3 0.8.5 syntax: the new declaration keywords `constset`, `excuse` (also `excuse { A, B }`) and
+  `attrmacro` next to `constdef`, `faultdef` and `attrdef`; `$feat` (also with `@feat`'s syntax:
+  `$feat(FOO & !BAR)`); a compile-time ternary in `alias foo = $feat(X) ? a : b`; `a.$field`;
+  the `+++=` operator. Completion suggests the new keywords.
+- The whole C3 0.8.5 standard library parses without errors (it did not: `2.` floats,
+  `import a @public, b`, `extern const` without a value, attributes after a typedef's type,
+  `alias X = Fn::returns`, `fn f() => obj.@macro() { ... }`, and enums backed by a user type
+  such as `enum E : CInt { A, B }`, whose body was read as generic arguments).
+- `scripts/regenerate-parser.sh` regenerates the lexer and parser without the IDE (NOTES.md).
 - Completion inside a declaration's interface list (`struct MyStruct (…)`) offers the available interfaces (only interface types), adding the import if needed. Works even before the declaration body is typed.
 - Fixed an `AssertionError` thrown by the annotator on an incomplete `alias` declaration while typing.
 - Quick Documentation on a type used in a parameter/return type (e.g. `Formatter` in `Formatter* formatter`) now shows the type's documentation instead of the enclosing function's.

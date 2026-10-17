@@ -28,6 +28,12 @@ public class C3ImportPathsImpl extends C3PsiElementImpl implements C3ImportPaths
 
   @Override
   @NotNull
+  public List<C3Attributes> getAttributesList() {
+    return PsiTreeUtil.getChildrenOfTypeAsList(this, C3Attributes.class);
+  }
+
+  @Override
+  @NotNull
   public List<C3ImportPath> getImportPathList() {
     return PsiTreeUtil.getChildrenOfTypeAsList(this, C3ImportPath.class);
   }

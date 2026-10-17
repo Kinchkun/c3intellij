@@ -4,7 +4,7 @@ import com.intellij.lang.documentation.DocumentationMarkup;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.presentation.java.SymbolPresentationUtil;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
-import org.c3lang.intellij.psi.C3LocalDeclarationStmt;
+import org.c3lang.intellij.psi.C3OptionalType;
 import org.jetbrains.annotations.NotNull;
 
 public final class VarDeclDocs
@@ -16,8 +16,10 @@ public final class VarDeclDocs
     public static @NotNull String generateVarDeclDoc(@NotNull C3LocalDeclAfterType element)
     {
         String name = element.getName() != null ? element.getName() : "Error getting name";
-        C3LocalDeclarationStmt declaration = (C3LocalDeclarationStmt) element.getParent().getParent();
-        String type = declaration.getOptionalType().getType().getText();
+        C3OptionalType declaredType = element.getDeclaredType();
+        String type = declaredType != null && declaredType.getType() != null
+                ? declaredType.getType().getText()
+                : "";
         String file = SymbolPresentationUtil.getFilePathPresentation(element.getContainingFile());
 
         return renderFullDoc(file, name, type, element.getProject());
@@ -30,7 +32,7 @@ public final class VarDeclDocs
             @NotNull Project project)
     {
         StringBuilder builder = new StringBuilder();
-        DocumentationUtils.appendDefinition(type + " " + name, project, builder);
+        DocumentationUtils.appendDefinition(type.isEmpty() ? name : type + " " + name, project, builder);
         builder.append(DocumentationMarkup.SECTIONS_START);
         DocumentationUtils.appendFileSection(file, builder);
         builder.append(DocumentationMarkup.SECTIONS_END);

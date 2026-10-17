@@ -156,7 +156,11 @@ public final class C3UnusedDeclarationInspection extends LocalInspectionTool
 			@Override
 			public void visitTypedefDecl(@NotNull C3TypedefDecl typedef)
 			{
-				if (hasEntryPointAttribute(typedef.getAttributes())) return;
+				// (attributes before `=` and after the type: typedef X @local = ulong[<4>] @simd)
+				for (C3Attributes attributes : typedef.getAttributesList())
+				{
+					if (hasEntryPointAttribute(attributes)) return;
+				}
 				report(typedef.getTypeName(), "Typedef");
 			}
 

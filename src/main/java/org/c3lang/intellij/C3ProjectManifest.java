@@ -4,7 +4,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -63,6 +65,65 @@ public final class C3ProjectManifest
     }
 
     /**
+     * The target of {@code project.json} that compiles {@code file} (a path relative to the project
+     * directory): the first target of the given {@code type} (e.g. {@code "executable"}, or
+     * {@code null} for any) whose own {@code "sources"} — or {@code "test-sources"} when
+     * {@code testSources} is set — match it, as in a workspace whose apps live in
+     * {@code apps/<name>/src/**}. Returns {@code null} when no target claims the file (e.g. it is only
+     * covered by the top-level sources) so {@code c3c} falls back to its default target.
+     */
+    public static @Nullable String findTargetForFile(String projectDirectory, @NotNull String file,
+                                                     @Nullable String type, boolean testSources)
+    {
+        if (projectDirectory == null || projectDirectory.isEmpty()) return null;
+
+        Path manifest = Path.of(projectDirectory, "project.json");
+        if (!Files.isRegularFile(manifest)) return null;
+
+        Path relative = Path.of(file.replace('\\', '/')).normalize();
+        try
+        {
+            JsonElement root = JsonParser.parseString(Files.readString(manifest));
+            if (!root.isJsonObject()) return null;
+
+            JsonElement targets = root.getAsJsonObject().get("targets");
+            if (targets == null || !targets.isJsonObject()) return null;
+
+            for (Map.Entry<String, JsonElement> entry : targets.getAsJsonObject().entrySet())
+            {
+                if (!entry.getValue().isJsonObject()) continue;
+                JsonObject target = entry.getValue().getAsJsonObject();
+
+                JsonElement targetType = target.get("type");
+                if (type != null && (targetType == null || !targetType.isJsonPrimitive()
+                        || !type.equals(targetType.getAsString()))) continue;
+
+                for (String pattern : stringArray(target.get(testSources ? "test-sources" : "sources")))
+                {
+                    if (matchesSourcePattern(pattern, relative)) return entry.getKey();
+                }
+            }
+        }
+        catch (Exception ignored)
+        {
+            // Malformed or unreadable manifest: no target.
+        }
+
+        return null;
+    }
+
+    /** Whether a {@code project.json} source pattern ({@code src/**}, {@code src/*.c3}, a plain path) matches {@code file}. */
+    private static boolean matchesSourcePattern(@NotNull String pattern, @NotNull Path file)
+    {
+        String glob = pattern.replace('\\', '/');
+        if (glob.startsWith("./")) glob = glob.substring(2);
+        if (FileSystems.getDefault().getPathMatcher("glob:" + glob).matches(file)) return true;
+        // A directory entry (`src` or `src/`) covers everything below it.
+        String dir = glob.endsWith("/") ? glob.substring(0, glob.length() - 1) : glob;
+        return !dir.contains("*") && file.startsWith(Path.of(dir));
+    }
+
+    /**
      * The {@code "output"} directory declared in {@code project.json} (where {@code c3c} writes built
      * binaries), or {@code "build"} when unspecified or unreadable — the C3 default.
      */
@@ -92,5 +153,62 @@ public final class C3ProjectManifest
         }
 
         return fallback;
+    }
+
+    /**
+     * The libraries listed under {@code "dependencies"} in {@code project.json}, located the way
+     * {@code c3c} does: {@code <dir>/<name>.c3l} for each {@code "dependency-search-paths"} entry
+     * (default {@code ["lib"]}), resolved against the project directory. A {@code .c3l} may be a ZIP
+     * archive or a plain directory (e.g. {@code ../mystd/mystd.c3l}). Dependencies that can't be
+     * found are skipped; the first search path that has a dependency wins.
+     */
+    public static @NotNull List<Path> dependencyLibraries(String projectDirectory)
+    {
+        List<Path> result = new ArrayList<>();
+        if (projectDirectory == null || projectDirectory.isEmpty()) return result;
+
+        Path base = Path.of(projectDirectory);
+        Path manifest = base.resolve("project.json");
+        if (!Files.isRegularFile(manifest)) return result;
+
+        try
+        {
+            JsonElement root = JsonParser.parseString(Files.readString(manifest));
+            if (!root.isJsonObject()) return result;
+            JsonObject object = root.getAsJsonObject();
+
+            List<String> searchPaths = stringArray(object.get("dependency-search-paths"));
+            if (searchPaths.isEmpty()) searchPaths = List.of("lib");
+
+            for (String dependency : stringArray(object.get("dependencies")))
+            {
+                for (String searchPath : searchPaths)
+                {
+                    Path library = base.resolve(searchPath).resolve(dependency + ".c3l").normalize();
+                    if (Files.exists(library))
+                    {
+                        if (!result.contains(library)) result.add(library);
+                        break;
+                    }
+                }
+            }
+        }
+        catch (Exception ignored)
+        {
+            // Malformed or unreadable manifest: fall back to whatever we collected.
+        }
+
+        return result;
+    }
+
+    private static @NotNull List<String> stringArray(JsonElement element)
+    {
+        List<String> result = new ArrayList<>();
+        if (element == null || !element.isJsonArray()) return result;
+        for (JsonElement item : element.getAsJsonArray())
+        {
+            if (item.isJsonPrimitive() && !item.getAsString().isBlank()) result.add(item.getAsString());
+        }
+        return result;
     }
 }

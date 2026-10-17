@@ -59,6 +59,7 @@ public class C3StructDeclarationStub extends StubBase<C3StructDeclaration>
 		);
 	}
 
+	/** Runs during indexing: must derive from the file text alone, never from the stub index. */
 	private static @NotNull List<StructField> collectFields(@NotNull C3StructDeclaration psi)
 	{
 		C3StructBody structBody = psi.getStructBody();

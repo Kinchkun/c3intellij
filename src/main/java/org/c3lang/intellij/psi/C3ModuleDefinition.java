@@ -1,5 +1,7 @@
 package org.c3lang.intellij.psi;
 
+import com.intellij.openapi.project.DumbService;
+import org.c3lang.intellij.index.NameIndexService;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import java.util.List;
@@ -47,5 +49,32 @@ public interface C3ModuleDefinition extends C3ModuleNamePsiElement
 		if (autoImported != null) return autoImported;
 
 		return getImportedModuleCovering(moduleName);
+	}
+
+	/**
+	 * {@link #resolve(C3Type)} is text-only (it also runs while stubs are built), so it places an
+	 * unqualified type in this module. When this module doesn't declare it, use the index to find the
+	 * visible module (an import, or the auto-imported {@code std::core}) that does — e.g.
+	 * {@code ParsedArgs} declared in an imported {@code mystd::args}. Returns {@code fqn} unchanged
+	 * while indexing, when the type is declared here, or when the match is ambiguous.
+	 */
+	default @Nullable FullyQualifiedName resolveDeclaringModule(@Nullable FullyQualifiedName fqn)
+	{
+		if (fqn == null || !isSameModule(fqn.getModule())) return fqn;
+		if (DumbService.isDumb(getProject())) return fqn;
+
+		FullyQualifiedName visible = null;
+		for (C3FullyQualifiedNamePsiElement element :
+			NameIndexService.INSTANCE.findByNameEndsWith("::" + fqn.getName(), getProject()))
+		{
+			if (!(element instanceof C3TypeName)) continue;
+			FullyQualifiedName declared = element.getFqName();
+			if (!declared.getName().equals(fqn.getName())) continue;
+			if (isSameModule(declared.getModule())) return fqn;
+			if (getVisibleModulePrefix(declared.getModule()) == null) continue;
+			if (visible != null && !visible.equals(declared)) return fqn;
+			visible = declared;
+		}
+		return visible != null ? visible : fqn;
 	}
 }

@@ -51,7 +51,9 @@ public final class TopLevelCompletionContributor extends CompletionProvider<Comp
             List.of(
                 "fn",
                 "struct",
-                "faultdef",
+                "excuse",
+                "constset",
+                "attrmacro",
                 "macro",
                 "alias",
                 "typedef",

@@ -64,7 +64,7 @@ public abstract class C3ParameterMixinImpl extends C3PsiNamedElementImpl impleme
 	public @Nullable FullyQualifiedName findTypeName()
 	{
 		C3Type type = getType();
-		if (type != null) return FullyQualifiedName.Companion.from(type);
+		if (type != null) return getModuleDefinition().resolveDeclaringModule(FullyQualifiedName.Companion.from(type));
 
 		// An implicit method receiver (`&self`/`self`) carries no written type; its type is the
 		// receiver type of the enclosing method, i.e. `Receiver` in `fn ... Receiver.name(&self, ...)`.
@@ -72,7 +72,7 @@ public abstract class C3ParameterMixinImpl extends C3PsiNamedElementImpl impleme
 		{
 			C3FuncDef funcDef = PsiTreeUtil.getParentOfType(this, C3FuncDef.class);
 			C3Type receiver = funcDef != null ? funcDef.getFuncHeader().getFuncName().getType() : null;
-			if (receiver != null) return FullyQualifiedName.Companion.from(receiver);
+			if (receiver != null) return getModuleDefinition().resolveDeclaringModule(FullyQualifiedName.Companion.from(receiver));
 		}
 		return null;
 	}

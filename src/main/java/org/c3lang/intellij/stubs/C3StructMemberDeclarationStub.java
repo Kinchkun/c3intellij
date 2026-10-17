@@ -40,6 +40,8 @@ public class C3StructMemberDeclarationStub extends StubBase<C3StructMemberDeclar
 		@Nullable IStubElementType<?, ?> elementType,
 		@NotNull C3StructMemberDeclaration psi)
 	{
+		// Runs during indexing: everything stored here must derive from the file text alone,
+		// never from the stub index (see C3ModuleDefinitionMixinImpl#resolve(C3Type)).
 		this(parent, elementType, psi.getStructType(), psi.getStructPath(), psi.getStructPathType());
 	}
 

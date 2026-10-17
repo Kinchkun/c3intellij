@@ -14,8 +14,8 @@ import com.intellij.util.ProcessingContext;
 import org.c3lang.intellij.psi.C3CompoundStatement;
 import org.c3lang.intellij.psi.C3FuncDefinition;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
-import org.c3lang.intellij.psi.C3LocalDeclarationStmt;
 import org.c3lang.intellij.psi.C3MacroDefinition;
+import org.c3lang.intellij.psi.C3OptionalType;
 import org.c3lang.intellij.psi.C3ParamDecl;
 import org.c3lang.intellij.psi.C3ParamPathElement;
 import org.c3lang.intellij.psi.C3Parameter;
@@ -107,11 +107,7 @@ public final class LocalCompletionContributor extends CompletionProvider<Complet
 
 	private static @NotNull String localType(@NotNull C3LocalDeclAfterType decl)
 	{
-		C3LocalDeclarationStmt stmt = PsiTreeUtil.getParentOfType(decl, C3LocalDeclarationStmt.class);
-		if (stmt != null && stmt.getOptionalType() != null && stmt.getOptionalType().getType() != null)
-		{
-			return stmt.getOptionalType().getType().getText();
-		}
-		return "";
+		C3OptionalType type = decl.getDeclaredType();
+		return type != null && type.getType() != null ? type.getType().getText() : "";
 	}
 }
