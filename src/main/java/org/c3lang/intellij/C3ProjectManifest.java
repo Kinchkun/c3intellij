@@ -1,11 +1,14 @@
 package org.c3lang.intellij;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -199,6 +202,137 @@ public final class C3ProjectManifest
         }
 
         return result;
+    }
+
+    /** A target of {@code project.json}: its name, {@code "type"} and own (test) source patterns. */
+    public record Target(@NotNull String name, @NotNull String type,
+                         @NotNull List<String> sources, @NotNull List<String> testSources)
+    {
+        public boolean isExecutable()
+        {
+            return "executable".equals(type);
+        }
+    }
+
+    /**
+     * All targets declared in the {@code project.json} of {@code projectDirectory}, in declaration
+     * order. A target without its own {@code "test-sources"} inherits the top-level ones, as in
+     * {@code c3c}. Returns an empty list if the manifest is missing or cannot be parsed.
+     */
+    public static @NotNull List<Target> targets(String projectDirectory)
+    {
+        List<Target> result = new ArrayList<>();
+        JsonObject root = readManifest(projectDirectory);
+        if (root == null) return result;
+
+        JsonElement targets = root.get("targets");
+        if (targets == null || !targets.isJsonObject()) return result;
+
+        List<String> defaultTestSources = stringArray(root.get("test-sources"));
+        for (Map.Entry<String, JsonElement> entry : targets.getAsJsonObject().entrySet())
+        {
+            if (!entry.getValue().isJsonObject()) continue;
+            JsonObject target = entry.getValue().getAsJsonObject();
+            JsonElement type = target.get("type");
+            List<String> testSources = target.has("test-sources")
+                ? stringArray(target.get("test-sources"))
+                : defaultTestSources;
+            result.add(new Target(
+                entry.getKey(),
+                type != null && type.isJsonPrimitive() ? type.getAsString() : "",
+                stringArray(target.get("sources")),
+                testSources));
+        }
+        return result;
+    }
+
+    /**
+     * Adds a target to the {@code project.json} of {@code projectDirectory}, keeping all other
+     * entries. The manifest is rewritten pretty-printed.
+     *
+     * @throws IOException when the manifest is missing, unreadable or already declares {@code name}
+     */
+    public static void addTarget(@NotNull String projectDirectory, @NotNull Target target) throws IOException
+    {
+        JsonObject root = requireManifest(projectDirectory);
+        JsonElement targets = root.get("targets");
+        if (targets == null || !targets.isJsonObject())
+        {
+            targets = new JsonObject();
+            root.add("targets", targets);
+        }
+        if (targets.getAsJsonObject().has(target.name()))
+        {
+            throw new IOException("Target '" + target.name() + "' already exists in project.json");
+        }
+
+        JsonObject entry = new JsonObject();
+        entry.addProperty("type", target.type());
+        entry.add("sources", toArray(target.sources()));
+        if (!target.testSources().isEmpty()) entry.add("test-sources", toArray(target.testSources()));
+        targets.getAsJsonObject().add(target.name(), entry);
+        writeManifest(projectDirectory, root);
+    }
+
+    /** Adds {@code library} to the {@code "dependencies"} of {@code project.json}, unless already listed. */
+    public static void addDependency(@NotNull String projectDirectory, @NotNull String library) throws IOException
+    {
+        JsonObject root = requireManifest(projectDirectory);
+        List<String> dependencies = stringArray(root.get("dependencies"));
+        if (dependencies.contains(library)) return;
+        dependencies.add(library);
+        root.add("dependencies", toArray(dependencies));
+        writeManifest(projectDirectory, root);
+    }
+
+    /** The {@code "dependency-search-paths"} of {@code project.json}, or {@code ["lib"]} when unspecified. */
+    public static @NotNull List<String> dependencySearchPaths(String projectDirectory)
+    {
+        JsonObject root = readManifest(projectDirectory);
+        List<String> paths = root != null ? stringArray(root.get("dependency-search-paths")) : new ArrayList<>();
+        return paths.isEmpty() ? List.of("lib") : paths;
+    }
+
+    private static @Nullable JsonObject readManifest(String projectDirectory)
+    {
+        if (projectDirectory == null || projectDirectory.isEmpty()) return null;
+        try
+        {
+            return requireManifest(projectDirectory);
+        }
+        catch (Exception ignored)
+        {
+            return null;
+        }
+    }
+
+    private static @NotNull JsonObject requireManifest(@NotNull String projectDirectory) throws IOException
+    {
+        Path manifest = Path.of(projectDirectory, "project.json");
+        if (!Files.isRegularFile(manifest)) throw new IOException("No project.json in " + projectDirectory);
+        try
+        {
+            JsonElement root = JsonParser.parseString(Files.readString(manifest));
+            if (!root.isJsonObject()) throw new IOException("project.json is not a JSON object");
+            return root.getAsJsonObject();
+        }
+        catch (RuntimeException e)
+        {
+            throw new IOException("Cannot parse project.json: " + e.getMessage(), e);
+        }
+    }
+
+    private static void writeManifest(@NotNull String projectDirectory, @NotNull JsonObject root) throws IOException
+    {
+        String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(root);
+        Files.writeString(Path.of(projectDirectory, "project.json"), json + "\n");
+    }
+
+    private static @NotNull JsonArray toArray(@NotNull List<String> values)
+    {
+        JsonArray array = new JsonArray();
+        values.forEach(array::add);
+        return array;
     }
 
     private static @NotNull List<String> stringArray(JsonElement element)

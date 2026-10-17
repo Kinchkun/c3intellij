@@ -190,6 +190,8 @@
     <!--<projectSdkSetupValidator implementation="" />-->
  
     <configurationType implementation="org.c3lang.intellij.C3ConfigurationType"/>
+    <toolWindow id="C3 Targets" anchor="right" secondary="false" icon="org.c3lang.intellij.C3Icons.FILE"
+                factoryClass="org.c3lang.intellij.targets.C3TargetsToolWindowFactory"/>
  
     <postStartupActivity implementation="org.c3lang.intellij.actions.StartupAction" />
 

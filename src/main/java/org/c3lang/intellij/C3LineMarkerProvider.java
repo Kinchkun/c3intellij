@@ -13,6 +13,7 @@ import com.intellij.icons.AllIcons;
 import com.intellij.ide.scratch.ScratchUtil;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
@@ -26,11 +27,8 @@ import org.c3lang.intellij.psi.C3FuncName;
 import org.c3lang.intellij.psi.C3Module;
 import org.c3lang.intellij.psi.C3ModuleSection;
 import org.c3lang.intellij.psi.C3Types;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class C3LineMarkerProvider implements LineMarkerProvider
 {
@@ -152,120 +150,37 @@ public class C3LineMarkerProvider implements LineMarkerProvider
 		return element.getContainingFile() != null ? element.getContainingFile().getVirtualFile() : null;
 	}
 
-	/**
-	 * The working directory for running {@code file}: its C3 project (nearest {@code project.json}),
-	 * so a workspace holding several C3 projects runs the right one.
-	 */
-	private static String workingDirectory(Project project, @Nullable VirtualFile file)
+	/** The C3 project (nearest {@code project.json}) of {@code file}, else the IDE project's base dir. */
+	private static @Nullable VirtualFile projectDirOf(Project project, @Nullable VirtualFile file)
 	{
 		VirtualFile dir = C3Projects.findProjectDir(file);
-		return dir != null ? dir.getPath() : project.getBasePath();
+		if (dir != null) return dir;
+		String basePath = project.getBasePath();
+		return basePath != null ? LocalFileSystem.getInstance().findFileByPath(basePath) : null;
 	}
 
 	/**
 	 * The {@code project.json} target that compiles {@code file} (see {@link C3ProjectManifest#findTargetForFile}),
 	 * e.g. {@code git-check} for {@code apps/git-check/src/main.c3}, or {@code null} for {@code c3c}'s default.
 	 */
-	private static @Nullable String targetOf(@Nullable String workingDirectory, @Nullable VirtualFile file,
+	private static @Nullable String targetOf(@NotNull VirtualFile projectDir, @Nullable VirtualFile file,
 	                                         @Nullable String type, boolean testSources)
 	{
-		if (workingDirectory == null || file == null) return null;
-		VirtualFile root = file.getFileSystem().findFileByPath(workingDirectory);
-		String relative = root != null ? VfsUtilCore.getRelativePath(file, root) : null;
-		return relative != null ? C3ProjectManifest.findTargetForFile(workingDirectory, relative, type, testSources) : null;
-	}
-
-	/** {@code name}, prefixed with the C3 project's folder name when the IDE project holds several. */
-	private static String configName(Project project, @Nullable VirtualFile file, String name)
-	{
-		String label = C3Projects.label(project, C3Projects.findProjectDir(file));
-		return label != null ? label + ": " + name : name;
+		if (file == null) return null;
+		String relative = VfsUtilCore.getRelativePath(file, projectDir);
+		return relative != null ? C3ProjectManifest.findTargetForFile(projectDir.getPath(), relative, type, testSources) : null;
 	}
 
 	/** Runs the tests whose {@code module::name} contains {@code filter} ({@code c3c test --test-filter}). */
 	private static void runTests(Project project, @Nullable VirtualFile file, String name, String filter)
 	{
 		VirtualFile library = C3Projects.findLibraryDir(file);
-		if (library != null && runLibraryTests(project, file, library, name, filter)) return;
+		if (library != null && C3TargetRunner.runLibraryTests(project, library, filter, name)) return;
 
-		RunManager runManager = RunManager.getInstance(project);
-		ConfigurationFactory factory = C3ConfigurationType.getInstance().testFactory();
-
-		RunnerAndConfigurationSettings settings =
-			runManager.createConfiguration(configName(project, file, name), factory);
-		C3CommandRunConfiguration config = (C3CommandRunConfiguration) settings.getConfiguration();
-
-		String workingDirectory = workingDirectory(project, file);
-		String target = targetOf(workingDirectory, file, null, true);
-
-		config.setWorkingDirectory(workingDirectory);
-		config.setArgs((target != null ? target + " " : "") + "--test-filter " + filter);
-
-		runManager.addConfiguration(settings);
-		runManager.setSelectedConfiguration(settings);
-
-		run(project, settings);
-	}
-
-	/**
-	 * Runs tests of the directory library {@code library} ({@code lib/argparse.c3l}). Its {@code test/}
-	 * folder is no part of any project target, so compile the library plus its tests directly:
-	 * {@code c3c compile-test --libdir lib --lib argparse lib/argparse.c3l/test/*.c3 --test-filter ...}.
-	 * Returns false when there are no test files to compile.
-	 */
-	static boolean runLibraryTests(Project project, @Nullable VirtualFile file, VirtualFile library,
-	                               String name, String filter)
-	{
-		String args = libraryTestArgs(project, file, library, filter);
-		if (args == null) return false;
-
-		RunManager runManager = RunManager.getInstance(project);
-		RunnerAndConfigurationSettings settings = runManager.createConfiguration(
-			library.getName() + ": " + name, C3ConfigurationType.getInstance().libraryTestFactory());
-		C3CommandRunConfiguration config = (C3CommandRunConfiguration) settings.getConfiguration();
-		config.setWorkingDirectory(libraryWorkingDirectory(project, file, library).getPath());
-		config.setArgs(args);
-
-		runManager.addConfiguration(settings);
-		runManager.setSelectedConfiguration(settings);
-
-		run(project, settings);
-		return true;
-	}
-
-	/** The owning C3 project when the library lives inside it, otherwise the folder holding the library. */
-	private static VirtualFile libraryWorkingDirectory(Project project, @Nullable VirtualFile file, VirtualFile library)
-	{
-		VirtualFile projectDir = C3Projects.findProjectDir(file);
-		return projectDir != null && VfsUtilCore.isAncestor(projectDir, library, true) ? projectDir : library.getParent();
-	}
-
-	/** The {@code c3c compile-test} arguments for {@link #runLibraryTests}, or null without test files. */
-	static @Nullable String libraryTestArgs(Project project, @Nullable VirtualFile file, VirtualFile library, String filter)
-	{
-		VirtualFile workingDirectory = libraryWorkingDirectory(project, file, library);
-		VirtualFile testDir = library.findChild("test");
-		List<String> testFiles = new ArrayList<>();
-		if (testDir != null)
-		{
-			VfsUtilCore.iterateChildrenRecursively(testDir, null, child -> {
-				if (!child.isDirectory() && "c3".equals(child.getExtension()))
-				{
-					testFiles.add(VfsUtilCore.getRelativePath(child, workingDirectory));
-				}
-				return true;
-			});
-		}
-		if (testFiles.isEmpty()) return null;
-		Collections.sort(testFiles);
-
-		String libraryName = library.getNameWithoutExtension();
-		String libDir = VfsUtilCore.getRelativePath(library.getParent(), workingDirectory);
-		return "--libdir " + (libDir == null || libDir.isEmpty() ? "." : libDir)
-			+ " --lib " + libraryName
-			+ " " + String.join(" ", testFiles)
-			+ " --build-dir build -o build/" + libraryName + "_test"
-			+ " --test-filter " + filter;
+		VirtualFile projectDir = projectDirOf(project, file);
+		if (projectDir == null) return;
+		C3TargetRunner.runTests(project, projectDir, targetOf(projectDir, file, null, true), filter, name,
+			DefaultRunExecutor.getRunExecutorInstance());
 	}
 
 	private static void runScratch(Project project, VirtualFile file)
@@ -285,39 +200,22 @@ public class C3LineMarkerProvider implements LineMarkerProvider
 		runManager.addConfiguration(settings);
 		runManager.setSelectedConfiguration(settings);
 
-		run(project, settings);
-	}
-
-	private static void createAndRunCustomConfig(Project project, @Nullable VirtualFile file)
-	{
-		RunManager runManager = RunManager.getInstance(project);
-		ConfigurationFactory factory = C3ConfigurationType.getInstance().runProjectFactory();
-		String workingDirectory = workingDirectory(project, file);
-		String target = targetOf(workingDirectory, file, "executable", false);
-		var settings = runManager.createConfiguration(configName(project, file, target != null ? target : "main"), factory);
-		C3BuildRunConfiguration config = (C3BuildRunConfiguration) settings.getConfiguration();
-
-		config.setWorkingDirectory(workingDirectory);
-		if (target != null) config.setTarget(target);
-		config.setArgs("");
-
-		runManager.addConfiguration(settings);
-		runManager.setSelectedConfiguration(settings);
-
-		run(project, settings);
-	}
-
-	private static void run(Project project, RunnerAndConfigurationSettings settings)
-	{
 		var executor = DefaultRunExecutor.getRunExecutorInstance();
 		try
 		{
-			ExecutionEnvironment environment = ExecutionEnvironmentBuilder.create(executor, settings).build();
-			environment.getRunner().execute(environment);
+			ExecutionEnvironmentBuilder.create(executor, settings).buildAndExecute();
 		}
 		catch (ExecutionException e)
 		{
 			throw new RuntimeException(e);
 		}
+	}
+
+	private static void createAndRunCustomConfig(Project project, @Nullable VirtualFile file)
+	{
+		VirtualFile projectDir = projectDirOf(project, file);
+		if (projectDir == null) return;
+		C3TargetRunner.runTarget(project, projectDir, targetOf(projectDir, file, "executable", false),
+			DefaultRunExecutor.getRunExecutorInstance());
 	}
 }

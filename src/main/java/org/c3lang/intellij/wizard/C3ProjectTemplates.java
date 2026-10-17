@@ -1,6 +1,7 @@
 package org.c3lang.intellij.wizard;
 
 import com.intellij.openapi.util.io.FileUtil;
+import org.c3lang.intellij.C3ProjectManifest;
 import org.c3lang.intellij.C3Util;
 import org.jetbrains.annotations.NotNull;
 
@@ -69,6 +70,56 @@ public final class C3ProjectTemplates
         writeTemplateIfAbsent(baseDir.resolve("manifest.json"), "templates/manifest.json", moduleName);
         writeTemplateIfAbsent(baseDir.resolve(interfaceFile), "templates/library", moduleName);
         return interfaceFile;
+    }
+
+    /**
+     * Adds an executable to the workspace in {@code projectDir}: {@code apps/<name>/src/main.c3},
+     * {@code apps/<name>/test/<module>_test.c3} and a matching target in {@code project.json}.
+     * Returns the path of the main file, relative to {@code projectDir}.
+     */
+    public static @NotNull String createAppTarget(@NotNull Path projectDir, @NotNull String name) throws IOException
+    {
+        String moduleName = toModuleName(name);
+        String app = "apps/" + name;
+        C3ProjectManifest.addTarget(projectDir.toString(), new C3ProjectManifest.Target(
+                name, "executable", List.of(app + "/src/**"), List.of(app + "/test/**")));
+        String mainFile = app + "/src/main.c3";
+        writeTemplateIfAbsent(projectDir.resolve(mainFile), "templates/main", moduleName);
+        writeIfAbsent(projectDir.resolve(app + "/test/" + moduleName + "_test.c3"), testTemplate(moduleName));
+        return mainFile;
+    }
+
+    /**
+     * Adds a directory library to the workspace in {@code projectDir}: {@code lib/<name>.c3l} with
+     * a {@code manifest.json}, {@code src/<module>.c3} and {@code test/<module>_test.c3}, listed in
+     * the {@code "dependencies"} of {@code project.json}. Returns the path of the source file,
+     * relative to {@code projectDir}.
+     */
+    public static @NotNull String createWorkspaceLibrary(@NotNull Path projectDir, @NotNull String name) throws IOException
+    {
+        String moduleName = toModuleName(name);
+        String library = "lib/" + name + ".c3l";
+        if (projectDir.resolve(library).toFile().exists())
+        {
+            throw new IOException("Library '" + library + "' already exists");
+        }
+        writeIfAbsent(projectDir.resolve(library + "/manifest.json"),
+                "{\n  \"provides\": \"" + moduleName + "\",\n  \"sources\": [ \"src/**\" ],\n"
+                + "  \"targets\": {\n"
+                + "    \"macos-aarch64\": {},\n    \"macos-x64\": {},\n    \"linux-x64\": {},\n"
+                + "    \"linux-aarch64\": {},\n    \"windows-x64\": {}\n  }\n}\n");
+        String sourceFile = library + "/src/" + moduleName + ".c3";
+        writeIfAbsent(projectDir.resolve(sourceFile), "module " + moduleName + ";\n");
+        writeIfAbsent(projectDir.resolve(library + "/test/" + moduleName + "_test.c3"), testTemplate(moduleName));
+        C3ProjectManifest.addDependency(projectDir.toString(), name);
+        return sourceFile;
+    }
+
+    private static @NotNull String testTemplate(@NotNull String moduleName)
+    {
+        return "module " + moduleName + "_test @test;\n"
+                + "import " + moduleName + ";\n\n"
+                + "fn void it_works()\n{\n    assert(true);\n}\n";
     }
 
     private static void createDirs(@NotNull Path baseDir, @NotNull List<String> dirs)

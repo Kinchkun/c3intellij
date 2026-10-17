@@ -37,17 +37,26 @@ public final class C3ProjectManifestListener implements BulkFileListener
 				// Any C3 project of the workspace, not only one at the IDE project root.
 				if (!Path.of(event.getPath()).startsWith(Path.of(basePath))) continue;
 
-				List<Path> libraries = C3ProjectLibrariesRootsProvider.dependencyPaths(project);
-				List<Path> previous = project.getUserData(C3ProjectLibrariesRootsProvider.DEPENDENCIES_KEY);
-				if (Objects.equals(libraries, previous)) continue;
-
-				project.putUserData(C3ProjectLibrariesRootsProvider.DEPENDENCIES_KEY, libraries);
-				ApplicationManager.getApplication().invokeLater(
-					() -> ApplicationManager.getApplication().runWriteAction(
-						() -> ProjectRootManagerEx.getInstanceEx(project).makeRootsChange(
-							EmptyRunnable.getInstance(), RootsChangeRescanningInfo.TOTAL_RESCAN)),
-					project.getDisposed());
+				reloadLibraries(project, false);
 			}
 		}
+	}
+
+	/**
+	 * Re-reads the dependency libraries of all {@code project.json}s and, when they changed (or
+	 * always with {@code force}), makes the IDE re-index the library roots.
+	 */
+	public static void reloadLibraries(@NotNull Project project, boolean force)
+	{
+		List<Path> libraries = C3ProjectLibrariesRootsProvider.dependencyPaths(project);
+		List<Path> previous = project.getUserData(C3ProjectLibrariesRootsProvider.DEPENDENCIES_KEY);
+		if (!force && Objects.equals(libraries, previous)) return;
+
+		project.putUserData(C3ProjectLibrariesRootsProvider.DEPENDENCIES_KEY, libraries);
+		ApplicationManager.getApplication().invokeLater(
+			() -> ApplicationManager.getApplication().runWriteAction(
+				() -> ProjectRootManagerEx.getInstanceEx(project).makeRootsChange(
+					EmptyRunnable.getInstance(), RootsChangeRescanningInfo.TOTAL_RESCAN)),
+			project.getDisposed());
 	}
 }
