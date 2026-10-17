@@ -85,11 +85,13 @@ SHEBANG_COMMENT = "#!" .*
     "asm" { return C3Types.KW_ASM; }
     "assert" { return C3Types.KW_ASSERT; }
     "attrdef" { return C3Types.KW_ATTRDEF; }
+    "attrmacro" { return C3Types.KW_ATTRDEF; }   // C3 0.8.5's name for attrdef
     "bitstruct" { return C3Types.KW_BITSTRUCT; }
     "break" { return C3Types.KW_BREAK; }
     "case" { return C3Types.KW_CASE; }
     "catch" { return C3Types.KW_CATCH; }
     "constdef" { return C3Types.KW_CONSTDEF; }
+    "constset" { return C3Types.KW_CONSTDEF; }   // C3 0.8.5's name for constdef
     "const" { return C3Types.KW_CONST; }
     "continue" { return C3Types.KW_CONTINUE; }
     "default" { return C3Types.KW_DEFAULT; }
@@ -104,6 +106,7 @@ SHEBANG_COMMENT = "#!" .*
     "false" { return C3Types.KW_FALSE; }
     "fault" { return C3Types.KW_FAULT; }
     "faultdef" { return C3Types.KW_FAULTDEF; }
+    "excuse" { return C3Types.KW_FAULTDEF; }     // C3 0.8.5's name for faultdef
     "for" { return C3Types.KW_FOR; }
     "fn" { return C3Types.KW_FN; }
     "if" { return C3Types.KW_IF; }
@@ -139,7 +142,8 @@ SHEBANG_COMMENT = "#!" .*
     "$eval" { return C3Types.KW_CT_EVAL; }
     "$exec" { return C3Types.KW_CT_EXEC; }
     "$expand" { return C3Types.KW_CT_EXPAND; }
-    "$feature" { return C3Types.KW_CT_FEATURE; }
+    "$feature" { return C3Types.KW_CT_FEATURE; }   // (deprecated since 0.8.3: $feat)
+    "$feat" { return C3Types.KW_CT_FEATURE; }
     "$for" { return C3Types.KW_CT_FOR; }
     "$foreach" { return C3Types.KW_CT_FOREACH; }
     "$if" { return C3Types.KW_CT_IF; }
@@ -180,6 +184,7 @@ SHEBANG_COMMENT = "#!" .*
     "&&&" { return C3Types.CT_AND; }
     "|||" { return C3Types.CT_OR; }
     "???" { return C3Types.CT_TERNARY; }
+    "+++=" { return C3Types.CT_PLUS_ASSIGN; }
     "+++" { return C3Types.CT_PLUS; }
     "..." { return C3Types.ELLIPSIS; }
     "<<=" { return C3Types.SHL_ASSIGN; }
@@ -245,6 +250,8 @@ SHEBANG_COMMENT = "#!" .*
 
     {INTEGER} { return C3Types.INT_LITERAL; }
     {REAL} { return C3Types.FLOAT_LITERAL; }
+    // 2. and 0. (a float without decimals; not 1..2 or 1.method)
+    {INT} "." / [^.a-zA-Z_0-9] { return C3Types.FLOAT_LITERAL; }
 
     {HASH_CONST_IDENT} { return TokenType.BAD_CHARACTER; }
     {AT_CONST_IDENT} { return TokenType.BAD_CHARACTER; }

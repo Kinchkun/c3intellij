@@ -66,3 +66,17 @@ regenerated, so the fix would survive.
 2. Right-click → *Generate Parser Code* (and *Run JFlex Generator* for the lexer).
 3. Re-apply every patch listed above.
 4. `./gradlew compileJava` to verify.
+
+**Without the IDE:** `./gradlew compileJava && scripts/regenerate-parser.sh` does all of it:
+the lexer with JFlex 1.9.2, the parser and PSI with the IDE's own Grammar-Kit plugin run headless
+(short names `b, l, r`, as the IDE action writes them; the plugin's compiled classes on the
+classpath so the `psiImplUtilClass` method signatures come out right), then it copies only the
+files that changed (never `C3StringExprImpl`: patch 2) and re-applies patch 1. Check the diff of
+`src/main/gen` afterwards: it should only touch what the grammar change touched.
+
+## Keeping up with C3
+
+`C3StdlibParseTest` parses every file of the C3 standard library (`$C3_STDLIB`, else mise's
+c3c install) and fails on any parse error. The stdlib uses the newest syntax first, so after a
+compiler update this test lists what the grammar is missing. c3c's `releasenotes.md` (next to
+the compiler) says what changed.

@@ -27,4 +27,10 @@ public class C3CtFeatureExprImpl extends C3ExprImpl implements C3CtFeatureExpr {
     else super.accept(visitor);
   }
 
+  @Override
+  @Nullable
+  public C3Expr getExpr() {
+    return findChildByClass(C3Expr.class);
+  }
+
 }

@@ -184,6 +184,9 @@
     <sdkType implementation="org.c3lang.intellij.C3SdkType"/>
     <newProjectWizard.languageGenerator implementation="org.c3lang.intellij.wizard.C3NewProjectWizard"/>
     <newProjectWizard.languageGenerator implementation="org.c3lang.intellij.wizard.C3NewLibraryWizard"/>
+    <!-- CLion (and other non-IDEA IDEs) build their New Project dialog from directoryProjectGenerator. -->
+    <directoryProjectGenerator implementation="org.c3lang.intellij.wizard.C3DirectoryProjectGenerator$Executable"/>
+    <directoryProjectGenerator implementation="org.c3lang.intellij.wizard.C3DirectoryProjectGenerator$Library"/>
     <!--<projectSdkSetupValidator implementation="" />-->
  
     <configurationType implementation="org.c3lang.intellij.C3ConfigurationType"/>
@@ -202,6 +205,8 @@
 
     <applicationListeners>
         <listener class="org.c3lang.intellij.autorerun.C3AutoRerunFileListener"
+                  topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
+        <listener class="org.c3lang.intellij.C3ProjectManifestListener"
                   topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
     </applicationListeners>
 

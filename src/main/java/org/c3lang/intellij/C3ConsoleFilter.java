@@ -65,8 +65,26 @@ public final class C3ConsoleFilter implements Filter
         return ReadAction.compute(() -> {
             Collection<VirtualFile> files =
                 FilenameIndex.getVirtualFilesByName(name, GlobalSearchScope.allScope(project));
-            return files.isEmpty() ? null : files.iterator().next();
+            return bestMatch(files, path);
         });
+    }
+
+    /**
+     * Picks the candidate whose path ends with the printed one (e.g. {@code src/main.c3}), so a
+     * workspace with several C3 projects opens the right {@code main.c3}; falls back to the first.
+     */
+    static @Nullable VirtualFile bestMatch(@NotNull Collection<VirtualFile> files, @NotNull String path)
+    {
+        String suffix = path.replace('\\', '/');
+        while (suffix.startsWith("./") || suffix.startsWith("../"))
+        {
+            suffix = suffix.substring(suffix.indexOf('/') + 1);
+        }
+        for (VirtualFile file : files)
+        {
+            if (file.getPath().endsWith("/" + suffix)) return file;
+        }
+        return files.isEmpty() ? null : files.iterator().next();
     }
 
     private static int parseLine(@NotNull String value)

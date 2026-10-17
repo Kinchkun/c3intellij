@@ -42,7 +42,7 @@ public class C3BuildRunEditor extends SettingsEditor<C3BuildRunConfiguration>
         if (configuration.getWorkingDirectory().isEmpty())
         {
             // By default, fill the workingDirectory field with the project's base path
-            workingDirectory = configuration.getProject().getBasePath();
+            workingDirectory = C3Projects.defaultWorkingDirectory(configuration.getProject());
         }
         else
         {

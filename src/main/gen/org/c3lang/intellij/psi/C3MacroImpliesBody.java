@@ -7,10 +7,13 @@ import com.intellij.psi.PsiElement;
 
 public interface C3MacroImpliesBody extends C3PsiElement {
 
-  @NotNull
+  @Nullable
   C3CallInvocation getCallInvocation();
 
-  @NotNull
+  @Nullable
   C3CompoundStatement getCompoundStatement();
+
+  @Nullable
+  C3Expr getExpr();
 
 }

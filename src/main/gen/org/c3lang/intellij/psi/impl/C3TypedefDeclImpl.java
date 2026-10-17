@@ -27,9 +27,9 @@ public class C3TypedefDeclImpl extends C3PsiElementImpl implements C3TypedefDecl
   }
 
   @Override
-  @Nullable
-  public C3Attributes getAttributes() {
-    return findChildByClass(C3Attributes.class);
+  @NotNull
+  public List<C3Attributes> getAttributesList() {
+    return PsiTreeUtil.getChildrenOfTypeAsList(this, C3Attributes.class);
   }
 
   @Override

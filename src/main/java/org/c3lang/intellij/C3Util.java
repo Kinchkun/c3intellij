@@ -102,7 +102,7 @@ public final class C3Util
     {
         PsiManager psiManager = PsiManager.getInstance(project);
         C3SettingsState settings = C3SettingsState.getInstance();
-        String stdLibPath = settings.stdlibPath;
+        String stdLibPath = settings.stdlibRoot();
 
         for (VirtualFile virtualFile : FilenameIndex.getAllFilesByExt(
                 project,
@@ -139,7 +139,7 @@ public final class C3Util
         Set<String> modules = new HashSet<>();
         PsiManager psiManager = PsiManager.getInstance(project);
         C3SettingsState settings = C3SettingsState.getInstance();
-        String stdLibPath = settings.stdlibPath;
+        String stdLibPath = settings.stdlibRoot();
 
         for (VirtualFile virtualFile : FilenameIndex.getAllFilesByExt(
                 project,
@@ -172,7 +172,7 @@ public final class C3Util
             @NotNull String module)
     {
         C3SettingsState settings = C3SettingsState.getInstance();
-        String stdLibPath = settings.stdlibPath;
+        String stdLibPath = settings.stdlibRoot();
         ArrayList<Either<C3FuncDefinition, C3MacroDefinition>> matches = new ArrayList<>();
         if (stdLibPath == null) return matches;
 

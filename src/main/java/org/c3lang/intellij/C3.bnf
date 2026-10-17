@@ -141,7 +141,8 @@ module_params ::= module_param (COMMA module_param)*
 
 import_decl ::= KW_IMPORT import_paths attributes? EOS
 import_path ::= IDENT (SCOPE IDENT)*  { pin(".*") = 1 }
-import_paths ::= import_path (COMMA import_path)*
+// import a @public, b: attributes per module (also after the last, then the declaration's)
+import_paths ::= import_path (attributes &COMMA)? (COMMA import_path (attributes &COMMA)?)*
 
 ct_include_stmt ::= KW_CT_INCLUDE string_expr attributes? EOS
 
@@ -182,7 +183,8 @@ type_name ::= TYPE_IDENT
 struct_declaration ::= (KW_STRUCT | KW_UNION) type_name interface_impl? generic_decl? attributes? struct_body
 bitstruct_declaration ::= KW_BITSTRUCT type_name interface_impl? COLON type generic_decl? attributes? bitstruct_body
 
-typedef_type ::= KW_FN optional_type fn_parameter_list | type generic_parameters? | expr
+// (type_access_expr first: `KeyFn::returns` is a type's property, not the type KeyFn)
+typedef_type ::= KW_FN optional_type fn_parameter_list | type_access_expr | type generic_parameters? | expr
 // NOTE: a generic argument must not be an assignment/ternary expression, otherwise a
 // declaration body such as `constdef X : inline String { CONTENT_TYPE = "..." }` is
 // misparsed as the generic instantiation `String{...}`. The generated parser is patched
@@ -193,11 +195,15 @@ generic_parameters ::= LB generic_parameter (COMMA generic_parameter)* RB
 def_attr_values ::= attribute (COMMA attribute)* COMMA?
 alias_declaration_source ::= (path_const | path_ident | path_at_ident) generic_parameters?
 attrdef_decl ::= KW_ATTRDEF attribute_user_name (LP parameter_list RP)? generic_decl? attributes? (EQ def_attr_values)? EOS
-typedef_decl ::= KW_TYPEDEF type_name interface_impl? generic_decl? attributes? EQ KW_INLINE? typedef_type EOS
+typedef_decl ::= KW_TYPEDEF type_name interface_impl? generic_decl? attributes? EQ KW_INLINE? typedef_type attributes? EOS
 alias_type_decl ::= KW_ALIAS type_name generic_decl? attributes? EQ typedef_type EOS
-faultdef_decl ::= KW_FAULTDEF fault_definition (COMMA fault_definition)* COMMA? EOS
+// excuse A, B;  and since 0.8.4  excuse { A, B }
+faultdef_decl ::= KW_FAULTDEF (LB fault_definition (COMMA fault_definition)* COMMA? RB | fault_definition (COMMA fault_definition)* COMMA? EOS)
 alias_name ::= CONST_IDENT | AT_IDENT | IDENT
-alias_decl ::= KW_ALIAS alias_name generic_decl? attributes? EQ ((KW_MODULE module_path) | alias_declaration_source) EOS
+alias_decl ::= KW_ALIAS alias_name generic_decl? attributes? EQ ((KW_MODULE module_path) | alias_ternary | alias_declaration_source) EOS
+// 0.8.4: alias foo = $feat(ABC) ? foo_1 : foo_2
+alias_ternary ::= alias_condition QUESTION alias_declaration_source COLON alias_declaration_source
+private alias_condition ::= ct_feature_expr | ct_defined_expr | path_const
 fault_definition ::= CONST_IDENT attributes?
 
 struct_body ::= LB struct_member_declaration* RB { pin(".*")=2 }
@@ -222,7 +228,11 @@ constdef_declaration ::= KW_CONSTDEF type_name interface_impl? (COLON KW_INLINE?
 constdef_list ::= constdef_constant (COMMA constdef_constant ?)* COMMA?
 constdef_constant ::= CONST_IDENT attributes? [eq_expr_pin]
 
-enum_declaration ::= KW_ENUM type_name interface_impl? (COLON KW_INLINE? type? enum_param_list?)? generic_decl? attributes? LB enum_list RB
+enum_declaration ::= KW_ENUM type_name interface_impl? (COLON KW_INLINE? enum_backing_type? enum_param_list?)? generic_decl? attributes? LB enum_list RB
+// The backing type (an integer type) is never generic: in `enum E : CInt { A, MAX }` the braces
+// are the enum's body, not generic arguments `CInt{A, MAX}`. A type that took them is not
+// followed by the body, so then the type is read without generic arguments.
+private enum_backing_type ::= type &(LB | LP | AT_IDENT) | path? TYPE_IDENT type_suffix*
 enum_param_list ::=  LP enum_param_decl (COMMA enum_param_decl)* RP
 enum_param_decl ::= type IDENT
 enum_list ::= enum_constant (COMMA enum_constant ?)* COMMA?
@@ -232,7 +242,7 @@ global_decl ::= KW_TLOCAL? optional_type IDENT ((COMMA IDENT)+ generic_decl? att
 
 // -- CALL & ARGUMENT HELPERS --
 
-access_ident ::= IDENT | AT_IDENT | HASH_IDENT | KW_CT_EVAL '(' expr ')' | KW_TYPEID
+access_ident ::= IDENT | AT_IDENT | HASH_IDENT | CT_IDENT | KW_CT_EVAL '(' expr ')' | KW_TYPEID
 
 arg_list ::= arg (COMMA arg)* COMMA?
 named_ident ::= CT_IDENT | HASH_IDENT | IDENT | CT_TYPE_IDENT
@@ -344,7 +354,8 @@ ct_switch_stmt ::= KW_CT_SWITCH constant_expr? COLON ct_switch_body KW_CT_ENDSWI
 ct_foreach_stmt ::= KW_CT_FOREACH CT_IDENT (COMMA CT_IDENT)? COLON expr COLON statement_list? KW_CT_ENDFOREACH
 ct_for_stmt ::= KW_CT_FOR for_cond COLON statement_list? KW_CT_ENDFOR
 
-const_declaration_stmt ::= KW_CONST type? CONST_IDENT attributes? eq_expr_pin EOS { pin=3 }
+// (no value: an extern const, `extern const CFStringRef K @cname("k");`)
+const_declaration_stmt ::= KW_CONST type? CONST_IDENT attributes? eq_expr_pin? EOS { pin=3 }
 local_declaration_stmt ::= local_decl_storage? optional_type decl_stmt_after_type EOS { pin=2 }
 
 assert_stmt ::= KW_ASSERT LP expr (COMMA expr)* RP EOS
@@ -420,7 +431,8 @@ assign_bin_op ::= EQ
     | SHL_ASSIGN
     | BIT_AND_ASSIGN
     | BIT_XOR_ASSIGN
-    | BIT_OR_ASSIGN { name = "operator" }
+    | BIT_OR_ASSIGN
+    | CT_PLUS_ASSIGN { name = "operator" }
 
 assign_type_expr ::= CT_TYPE_IDENT /*EQ type*/eq_expr_pin
 assign_bin_expr ::= expr assign_bin_op expr { rightAssociative=true }
@@ -446,7 +458,8 @@ compound_init_expr ::= LP type RP initializer_list
 local_ident_expr ::= CT_IDENT | HASH_IDENT
 type_access_expr ::= type SCOPE access_ident
 enum_access_expr ::= base_type DOT CONST_IDENT
-ct_feature_expr ::= KW_CT_FEATURE LP CONST_IDENT RP
+// $feat(FOO), and since 0.8.5 the syntax of @feat: $feat(FOO & !BAR)
+ct_feature_expr ::= KW_CT_FEATURE LP expr RP
 type_expr ::= type !IDENT !CT_IDENT !KW_CT_EVAL !QUESTION
 ct_analyze ::= KW_CT_EVAL | KW_CT_REFLECT | KW_CT_STRINGIFY | KW_CT_EXPAND
 ct_arg_expr ::= KW_CT_VAARG (LBT (range_exp | range_loc) RBT)?
@@ -514,11 +527,13 @@ interface_body ::= LB (func_def EOS)* RB
 func_def ::= KW_FN func_header fn_parameter_list generic_decl? attributes?
 func_definition ::= func_def (macro_func_body | EOS) { pin=1 }
 
-macro_func_body ::= macro_implies_body | IMPLIES expr EOS | compound_statement
+macro_func_body ::= IMPLIES expr EOS | macro_implies_body | compound_statement
 
-macro_implies_body ::= IMPLIES AT_IDENT call_invocation compound_statement
+// fn f() => @in_lock() { ... }, also on a path or a receiver: => self.mutex.@in_lock() { ... }
+// (there the call with its block is one expression: call_expr_tail; `=> expr;` is tried first)
+macro_implies_body ::= IMPLIES (AT_IDENT call_invocation compound_statement | expr)
 
-interface_impl ::= LP type_name (COMMA type)* RP
+interface_impl ::= LP type (COMMA type)* RP
 
 func_name ::= (type DOT)? IDENT
 

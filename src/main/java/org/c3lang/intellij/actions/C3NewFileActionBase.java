@@ -13,6 +13,8 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiFile;
 import org.apache.commons.lang3.Validate;
+import org.c3lang.intellij.C3Projects;
+import org.c3lang.intellij.wizard.C3ProjectTemplates;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NonNls;
@@ -39,7 +41,7 @@ abstract public class C3NewFileActionBase extends CreateFileFromTemplateAction
 
 		Properties properties = new Properties();
 		properties.putAll(templateManager.getDefaultProperties());
-		properties.setProperty("MODULE_NAME", getModuleName(project));
+		properties.setProperty("MODULE_NAME", getModuleName(project, dir.getVirtualFile()));
 
 		try
 		{
@@ -52,13 +54,16 @@ abstract public class C3NewFileActionBase extends CreateFileFromTemplateAction
 		}
 	}
 
-	private static @NotNull String getModuleName(@NotNull Project project)
+	/** The module name for a new file: the name of the C3 project (nearest {@code project.json}) it is created in. */
+	private static @NotNull String getModuleName(@NotNull Project project, @NotNull VirtualFile dir)
 	{
-		String basePath = Validate.notNull(project.getBasePath(), "Project base path cannot be null");
-		VirtualFile projectRoot =
-				Validate.notNull(LocalFileSystem.getInstance().findFileByPath(basePath), "Project root cannot be null");
-
-		return projectRoot.getName().replace(' ', '_').toLowerCase();
+		VirtualFile projectRoot = C3Projects.findProjectDir(dir);
+		if (projectRoot == null)
+		{
+			String basePath = Validate.notNull(project.getBasePath(), "Project base path cannot be null");
+			projectRoot = Validate.notNull(LocalFileSystem.getInstance().findFileByPath(basePath), "Project root cannot be null");
+		}
+		return C3ProjectTemplates.toModuleName(projectRoot.getName());
 	}
 
 	@Override public @NotNull String getActionName(@NotNull PsiDirectory psiDirectory, @NonNls @NotNull String newName,
@@ -74,16 +79,12 @@ abstract public class C3NewFileActionBase extends CreateFileFromTemplateAction
 		Project project = e.getProject();
 		VirtualFile virtualFile = e.getData(CommonDataKeys.VIRTUAL_FILE);
 
-		e.getPresentation().setVisible(project != null && virtualFile != null && isC3Project(project));
+		e.getPresentation().setVisible(project != null && virtualFile != null && isC3Project(project, virtualFile));
 	}
 
-	private static boolean isC3Project(@NotNull Project project)
+	/** Whether {@code file} is inside a C3 project, or the IDE project holds one (e.g. a workspace of several). */
+	private static boolean isC3Project(@NotNull Project project, @NotNull VirtualFile file)
 	{
-		String basePath = Validate.notNull(project.getBasePath(), "Project base path cannot be null");
-		VirtualFile projectDir =
-				Validate.notNull(LocalFileSystem.getInstance().findFileByPath(basePath), "Project root cannot be null");
-
-		VirtualFile markerFile = projectDir.findChild("project.json");
-		return markerFile != null && markerFile.exists();
+		return C3Projects.findProjectDir(file) != null || !C3Projects.findAll(project).isEmpty();
 	}
 }

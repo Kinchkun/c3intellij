@@ -88,4 +88,34 @@ public class C3UnresolvedTypeTest extends BasePlatformTestCase
 			.stream().filter(i -> i.getDescription() != null && i.getDescription().contains("Unresolved type"))
 			.count());
 	}
+
+	/**
+	 * {@code struct ByteWriter (OutStream)} in other modules (std::core::dstring, std::io, …) must not
+	 * count as declarations of {@code OutStream}, or an un-imported {@code OutStream} looks visible.
+	 */
+	public void testUnimportedInterfaceIsErrorDespiteImplementations()
+	{
+		myFixture.addFileToProject("io.c3", "module std::io;\ninterface OutStream\n{\n    fn usz? write(char[] bytes);\n}\n");
+		myFixture.addFileToProject("dstring.c3", "module std::core::dstring;\nimport std::io;\n"
+			+ "typedef DString (OutStream) = void*;\nstruct Writer (OutStream) { int x; }\n");
+		assertEquals(1, unresolvedTypeErrors(
+			"module argparse;\nstruct ArgParse { int x; }\nfn void? ArgParse.write_usage(&self, OutStream out) {}\n"));
+	}
+
+	public void testUnimportedInterfaceInImplementsListIsError()
+	{
+		myFixture.addFileToProject("io.c3", "module std::io;\ninterface OutStream\n{\n    fn usz? write(char[] bytes);\n}\n");
+		assertEquals(1, unresolvedTypeErrors("module app;\nstruct Writer (OutStream) { int x; }\n"));
+	}
+
+	public void testInterfaceImportQuickFixAddsImport()
+	{
+		myFixture.enableInspections(new C3UnresolvedTypeInspection());
+		myFixture.addFileToProject("io.c3", "module std::io;\ninterface OutStream\n{\n    fn usz? write(char[] bytes);\n}\n");
+		myFixture.configureByText("argparse.c3",
+			"module argparse;\nstruct ArgParse { int x; }\nfn void? ArgParse.write_usage(&self, Out<caret>Stream out) {}\n");
+		myFixture.doHighlighting();
+		myFixture.launchAction(myFixture.findSingleIntention("Import std::io"));
+		assertTrue(myFixture.getEditor().getDocument().getText().contains("import std::io;"));
+	}
 }

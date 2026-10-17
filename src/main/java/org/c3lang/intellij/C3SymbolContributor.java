@@ -9,9 +9,7 @@ import com.intellij.util.Processor;
 import com.intellij.util.indexing.FindSymbolParameters;
 import com.intellij.util.indexing.IdFilter;
 import org.c3lang.intellij.index.NameIndex;
-import org.c3lang.intellij.psi.C3InterfaceImpl;
 import org.c3lang.intellij.psi.C3PsiElement;
-import org.c3lang.intellij.psi.C3TypeName;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,9 +52,6 @@ public final class C3SymbolContributor implements ChooseByNameContributorEx
 		for (String key : keys)
 		{
 			index.processElements(NameIndex.KEY, key, project, scope, filter, C3PsiElement.class, element -> {
-				// Skip the interface name in `struct X (Interface)` — that is a usage, not a
-				// declaration, and would otherwise duplicate the interface in the symbol list.
-				if (element instanceof C3TypeName && element.getParent() instanceof C3InterfaceImpl) return true;
 				if (element instanceof NavigationItem item) return processor.process(item);
 				return true;
 			});

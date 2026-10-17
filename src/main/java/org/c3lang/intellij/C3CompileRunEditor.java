@@ -46,8 +46,8 @@ public class C3CompileRunEditor extends SettingsEditor<C3CompileRunConfiguration
 
         if (configuration.getWorkingDirectory().isEmpty())
         {
-            // By default, fill the workingDirectory field with the project's base path
-            String projectDirectory = configuration.getProject().getBasePath();
+            // By default, fill the workingDirectory field with the C3 project's directory
+            String projectDirectory = C3Projects.defaultWorkingDirectory(configuration.getProject());
             workingDirectoryField.setText(projectDirectory);
         }
         else

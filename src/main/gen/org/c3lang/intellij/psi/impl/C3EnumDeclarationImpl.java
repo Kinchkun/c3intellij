@@ -58,6 +58,12 @@ public class C3EnumDeclarationImpl extends C3PsiElementImpl implements C3EnumDec
 
   @Override
   @Nullable
+  public C3Path getPath() {
+    return findChildByClass(C3Path.class);
+  }
+
+  @Override
+  @Nullable
   public C3Type getType() {
     return findChildByClass(C3Type.class);
   }
@@ -66,6 +72,12 @@ public class C3EnumDeclarationImpl extends C3PsiElementImpl implements C3EnumDec
   @NotNull
   public C3TypeName getTypeName() {
     return findNotNullChildByClass(C3TypeName.class);
+  }
+
+  @Override
+  @NotNull
+  public List<C3TypeSuffix> getTypeSuffixList() {
+    return PsiTreeUtil.getChildrenOfTypeAsList(this, C3TypeSuffix.class);
   }
 
 }

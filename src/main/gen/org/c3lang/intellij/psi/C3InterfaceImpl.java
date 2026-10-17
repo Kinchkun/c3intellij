@@ -10,7 +10,4 @@ public interface C3InterfaceImpl extends C3PsiElement {
   @NotNull
   List<C3Type> getTypeList();
 
-  @NotNull
-  C3TypeName getTypeName();
-
 }
