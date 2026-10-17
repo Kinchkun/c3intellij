@@ -28,6 +28,10 @@ import org.c3lang.intellij.psi.C3ModuleSection;
 import org.c3lang.intellij.psi.C3Types;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class C3LineMarkerProvider implements LineMarkerProvider
 {
 	@Override
@@ -181,6 +185,9 @@ public class C3LineMarkerProvider implements LineMarkerProvider
 	/** Runs the tests whose {@code module::name} contains {@code filter} ({@code c3c test --test-filter}). */
 	private static void runTests(Project project, @Nullable VirtualFile file, String name, String filter)
 	{
+		VirtualFile library = C3Projects.findLibraryDir(file);
+		if (library != null && runLibraryTests(project, file, library, name, filter)) return;
+
 		RunManager runManager = RunManager.getInstance(project);
 		ConfigurationFactory factory = C3ConfigurationType.getInstance().testFactory();
 
@@ -198,6 +205,67 @@ public class C3LineMarkerProvider implements LineMarkerProvider
 		runManager.setSelectedConfiguration(settings);
 
 		run(project, settings);
+	}
+
+	/**
+	 * Runs tests of the directory library {@code library} ({@code lib/argparse.c3l}). Its {@code test/}
+	 * folder is no part of any project target, so compile the library plus its tests directly:
+	 * {@code c3c compile-test --libdir lib --lib argparse lib/argparse.c3l/test/*.c3 --test-filter ...}.
+	 * Returns false when there are no test files to compile.
+	 */
+	static boolean runLibraryTests(Project project, @Nullable VirtualFile file, VirtualFile library,
+	                               String name, String filter)
+	{
+		String args = libraryTestArgs(project, file, library, filter);
+		if (args == null) return false;
+
+		RunManager runManager = RunManager.getInstance(project);
+		RunnerAndConfigurationSettings settings = runManager.createConfiguration(
+			library.getName() + ": " + name, C3ConfigurationType.getInstance().libraryTestFactory());
+		C3CommandRunConfiguration config = (C3CommandRunConfiguration) settings.getConfiguration();
+		config.setWorkingDirectory(libraryWorkingDirectory(project, file, library).getPath());
+		config.setArgs(args);
+
+		runManager.addConfiguration(settings);
+		runManager.setSelectedConfiguration(settings);
+
+		run(project, settings);
+		return true;
+	}
+
+	/** The owning C3 project when the library lives inside it, otherwise the folder holding the library. */
+	private static VirtualFile libraryWorkingDirectory(Project project, @Nullable VirtualFile file, VirtualFile library)
+	{
+		VirtualFile projectDir = C3Projects.findProjectDir(file);
+		return projectDir != null && VfsUtilCore.isAncestor(projectDir, library, true) ? projectDir : library.getParent();
+	}
+
+	/** The {@code c3c compile-test} arguments for {@link #runLibraryTests}, or null without test files. */
+	static @Nullable String libraryTestArgs(Project project, @Nullable VirtualFile file, VirtualFile library, String filter)
+	{
+		VirtualFile workingDirectory = libraryWorkingDirectory(project, file, library);
+		VirtualFile testDir = library.findChild("test");
+		List<String> testFiles = new ArrayList<>();
+		if (testDir != null)
+		{
+			VfsUtilCore.iterateChildrenRecursively(testDir, null, child -> {
+				if (!child.isDirectory() && "c3".equals(child.getExtension()))
+				{
+					testFiles.add(VfsUtilCore.getRelativePath(child, workingDirectory));
+				}
+				return true;
+			});
+		}
+		if (testFiles.isEmpty()) return null;
+		Collections.sort(testFiles);
+
+		String libraryName = library.getNameWithoutExtension();
+		String libDir = VfsUtilCore.getRelativePath(library.getParent(), workingDirectory);
+		return "--libdir " + (libDir == null || libDir.isEmpty() ? "." : libDir)
+			+ " --lib " + libraryName
+			+ " " + String.join(" ", testFiles)
+			+ " --build-dir build -o build/" + libraryName + "_test"
+			+ " --test-filter " + filter;
 	}
 
 	private static void runScratch(Project project, VirtualFile file)

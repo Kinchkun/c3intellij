@@ -46,6 +46,23 @@ public final class C3Projects
 		return null;
 	}
 
+	/**
+	 * The directory library owning {@code file}: the nearest ancestor named {@code <name>.c3l} that
+	 * holds a {@code manifest.json}, e.g. {@code lib/argparse.c3l} for {@code lib/argparse.c3l/test/a.c3}.
+	 */
+	public static @Nullable VirtualFile findLibraryDir(@Nullable VirtualFile file)
+	{
+		for (VirtualFile dir = file == null ? null : file.isDirectory() ? file : file.getParent();
+		     dir != null;
+		     dir = dir.getParent())
+		{
+			if (!dir.getName().endsWith(".c3l")) continue;
+			VirtualFile manifest = dir.findChild("manifest.json");
+			if (manifest != null && !manifest.isDirectory()) return dir;
+		}
+		return null;
+	}
+
 	/** The directories of all C3 projects in the IDE project's content roots. */
 	public static @NotNull List<VirtualFile> findAll(@NotNull Project project)
 	{
