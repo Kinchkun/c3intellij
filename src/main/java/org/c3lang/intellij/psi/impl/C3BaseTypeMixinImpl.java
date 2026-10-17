@@ -59,10 +59,11 @@ public abstract class C3BaseTypeMixinImpl extends C3PsiNamedElementImpl implemen
 	@Override
 	public @Nullable LeafPsiElement getNameIdentElement()
 	{
-		PsiElement last = getLastChild();
-		if (last != null && last.getNode().getElementType() == C3Types.TYPE_IDENT)
+		// The name is the last TYPE_IDENT child: it follows an optional path (`io::File`) and is
+		// followed by the generic arguments of an instantiation (`List { int }`).
+		for (PsiElement child = getLastChild(); child != null; child = child.getPrevSibling())
 		{
-			return (LeafPsiElement) last;
+			if (child.getNode().getElementType() == C3Types.TYPE_IDENT) return (LeafPsiElement) child;
 		}
 		return null;
 	}

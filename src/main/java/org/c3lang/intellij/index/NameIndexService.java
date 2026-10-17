@@ -108,11 +108,12 @@ public final class NameIndexService
      */
     private static boolean keyMatchesType(@NotNull String key, @NotNull C3BaseType type)
     {
+        // Match on path and name only, never on generic arguments (`List { int }`).
+        String simpleName = type.getNameIdent() != null ? type.getNameIdent() : type.getText();
         if (type.getPath() != null)
         {
-            return key.endsWith(type.getText());
+            return key.endsWith(type.getPath().getText().trim() + simpleName);
         }
-        String simpleName = type.getNameIdent() != null ? type.getNameIdent() : type.getText();
         return key.equals(simpleName) || key.endsWith("::" + simpleName);
     }
 
