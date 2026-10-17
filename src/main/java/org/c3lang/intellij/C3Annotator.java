@@ -12,6 +12,20 @@ import org.c3lang.intellij.psi.*;
 import org.jetbrains.annotations.NotNull;
 
 // TODO move to kotlin after first NPE
+/**
+ * The main annotator implementation: semantic syntax highlighting and lightweight validation.
+ *
+ * <p>This is where most of the "smart colours" come from – it inspects each element and asks the
+ * {@link AnnotationHolder} to repaint it (e.g. a {@code C3TypeName} in a type colour, a call in the
+ * function-call colour) and to flag simple problems such as invalid string escapes or alias names
+ * that break C3's naming rules (const aliases must be {@code ALL_CAPS}, {@code @}-aliases must use an
+ * {@code @}-identifier).
+ *
+ * <p>It is not registered directly in {@code plugin.xml}; the registered entry point
+ * {@link org.c3lang.intellij.annotation.C3Annotator} delegates here via the {@link #INSTANCE}
+ * singleton. Being an annotator (not an inspection) it runs on every keystroke, so the checks here
+ * are deliberately cheap and local.
+ */
 public class C3Annotator implements Annotator
 {
     private C3Annotator() {}

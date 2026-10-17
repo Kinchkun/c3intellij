@@ -143,6 +143,12 @@
                      enabledByDefault="true"
                      level="ERROR"
                      implementationClass="org.c3lang.intellij.intention.C3DuplicateVariableInspection" />
+    <localInspection language="C3"
+                     displayName="Unresolved method or field"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="ERROR"
+                     implementationClass="org.c3lang.intellij.intention.C3UnresolvedMethodInspection" />
     <!-- TODO: Enable after grammar rewrite -->
     <!--<localInspection language="C3"
                          enabledByDefault="true"

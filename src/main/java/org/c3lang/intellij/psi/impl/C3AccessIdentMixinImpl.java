@@ -87,6 +87,32 @@ public abstract class C3AccessIdentMixinImpl extends C3PsiNamedElementImpl imple
 		return ((C3FullyQualifiedTypeNameProvider) resolved).findTypeName();
 	}
 
+	@Override
+	public @Nullable FullyQualifiedName findReceiverType()
+	{
+		// The receiver is the expression to the left of this access's dot, i.e. the `expr` part of
+		// the call_expr that owns this access ident (call_expr ::= expr call_expr_tail).
+		C3CallExpr call = PsiTreeUtil.getParentOfType(this, C3CallExpr.class);
+		if (call == null) return null;
+		PsiElement receiver = call.getExpr();
+
+		// Simple receiver: a variable/path like `object` → use its declared type.
+		if (receiver instanceof C3PathIdentExpr pathExpr)
+		{
+			return pathExpr.getPathIdent().findTypeName();
+		}
+		// Chained receiver: `a.b` in `a.b.foo` → the type of the previous member `b`. If `b` itself
+		// did not resolve, findTypeName() returns null and we (correctly) make no claim about `foo`.
+		if (receiver instanceof C3CallExpr inner)
+		{
+			C3CallExprTail tail = PsiTreeUtil.getChildOfType(inner, C3CallExprTail.class);
+			C3AccessIdent previous = tail != null ? PsiTreeUtil.getChildOfType(tail, C3AccessIdent.class) : null;
+			return previous != null ? previous.findTypeName() : null;
+		}
+		// Anything else (e.g. `Type::ident`, a call result `foo().bar`) – type not determined here.
+		return null;
+	}
+
 	private static class StructMemberReference extends C3ReferenceBase<C3AccessIdent>
 	{
 		StructMemberReference(@NotNull C3AccessIdent element)

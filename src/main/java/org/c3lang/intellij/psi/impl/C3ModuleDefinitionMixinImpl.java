@@ -151,7 +151,28 @@ public abstract class C3ModuleDefinitionMixinImpl extends C3PsiElementImpl imple
 
 		if (type.getBaseType().getPath() == null)
 		{
-			return Collections.singletonList(new FullyQualifiedName(getModuleName(), type.getBaseType().getText()));
+			String name = type.getBaseType().getText();
+			// An unqualified type name (e.g. `Object`) may be declared in an imported module. Resolve
+			// it to that DECLARING module via the index, so the resulting FQN matches how declarations
+			// are indexed (module::Type) and cross-module member/method lookups succeed. Fall back to
+			// the current module when there is not exactly one visible match (generic/type parameters,
+			// unknown names, ambiguous imports) — preserving the previous behaviour for those cases.
+			if (!DumbService.isDumb(getProject()))
+			{
+				List<FullyQualifiedName> visible = new ArrayList<>();
+				for (C3FullyQualifiedNamePsiElement element : NameIndexService.INSTANCE.findType(type.getBaseType(), getProject()))
+				{
+					if (element instanceof C3TypeName
+						&& element.getFqName().getName().equals(name)
+						&& containsImportOrSameModule(element)
+						&& !visible.contains(element.getFqName()))
+					{
+						visible.add(element.getFqName());
+					}
+				}
+				if (visible.size() == 1) return Collections.singletonList(visible.get(0));
+			}
+			return Collections.singletonList(new FullyQualifiedName(getModuleName(), name));
 		}
 
 		// The remaining resolution queries the stub index. During stub building (dumb

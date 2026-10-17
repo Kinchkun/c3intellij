@@ -9,6 +9,19 @@ import org.c3lang.intellij.C3ParserDefinition;
 import org.c3lang.intellij.psi.C3CallExpr;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * The registered C3 {@link Annotator} – the entry point for fast, per-element highlighting/validation.
+ *
+ * <p>An annotator runs continuously as you type: the platform calls {@link #annotate} for every PSI
+ * element, and we attach extra colours and inline errors/warnings via the {@link AnnotationHolder}.
+ * (Contrast with a {@code LocalInspectionTool}, which is heavier, runs as a separate pass and can
+ * offer quick fixes – see {@code intention/C3DuplicateVariableInspection}.)
+ *
+ * <p>This class is just the thin entry point declared in {@code plugin.xml}
+ * ({@code <annotator language="C3" .../>}). It dispatches doc-comment highlighting to
+ * {@link DocCommentAnnotator} and the bulk of the work (semantic colouring of types, calls, escapes,
+ * alias-naming checks...) to the {@link org.c3lang.intellij.C3Annotator} singleton.
+ */
 public class C3Annotator implements Annotator
 {
     @Override
@@ -22,6 +35,7 @@ public class C3Annotator implements Annotator
             }
         }
 
+        // Delegate semantic colouring + validation to the main annotator implementation.
         org.c3lang.intellij.C3Annotator.INSTANCE.annotate(element, holder);
     }
 

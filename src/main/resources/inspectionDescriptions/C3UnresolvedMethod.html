@@ -1,0 +1,19 @@
+<html>
+<body>
+Reports a member access <code>receiver.member</code> whose <code>member</code> does not exist on the
+receiver's type — for example calling a method that is not declared on a struct.
+<pre><code>
+struct Object { int x; }
+
+fn void f(Object* object)
+{
+    object.this_method_does_not_exist(); // 'this_method_does_not_exist' is not a method or field of Object
+}
+</code></pre>
+<p>To avoid false positives the inspection is conservative: it only reports when the receiver's type is
+known and is a struct/union with at least one field. Slices, arrays, enums and other built-in types
+(whose members such as <code>.len</code>, <code>.ptr</code> or <code>.ordinal</code> are not indexed) are
+not checked, and neither are accesses through a call result (<code>foo().bar</code>) or a
+<code>Type::ident</code> scope access.</p>
+</body>
+</html>

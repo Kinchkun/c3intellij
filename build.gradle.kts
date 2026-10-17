@@ -4,6 +4,13 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.intellij.platform")
     id("org.jetbrains.changelog")
+    id("org.jetbrains.grammarkit")
+}
+
+tasks.generateLexer {
+    sourceFile.set(file("src/main/java/org/c3lang/intellij/C3.flex"))
+    targetOutputDir.set(file("src/main/gen/org/c3lang/intellij/lexer"))
+    purgeOldFiles.set(true)
 }
 
 idea {
@@ -41,7 +48,7 @@ dependencies {
         local(
             providers.gradleProperty("clionPath")
                 .orElse(providers.environmentVariable("CLION_PATH"))
-                .orElse("/Users/tbr/Applications/CLion.app")
+                .orElse("/Users/kinch/Applications/CLion.app")
         )
         // Native Debugging Support (LLDB/CIDR). Used only by the optional, CLion-gated
         // debugger integration (see cidrdebugger.xml); the base plugin stays compatible

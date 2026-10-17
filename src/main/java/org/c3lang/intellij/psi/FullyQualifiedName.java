@@ -9,6 +9,21 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * The identity of a top-level declaration: an optional module plus a simple name, e.g.
+ * {@code std::io::File} → module {@code std::io}, name {@code File}.
+ *
+ * <p>This is the key under which declarations are stored in and looked up from the indexes (see
+ * {@code index/NameIndex}). Storing the FQN on each stub lets resolution and completion compare and
+ * filter symbols by module without touching the source. The {@code from(...)} overloads build an FQN
+ * from the various PSI declaration nodes; {@link #parse} reconstructs one from its string form.
+ *
+ * <p>Two derived strings are precomputed for convenience: {@link #getFullName()} (the canonical
+ * {@code module::name}) and {@link #getSuffixName()} (using only the module's short suffix).
+ *
+ * <p>(The {@code Companion} indirection mirrors a Kotlin-style factory so call sites read
+ * {@code FullyQualifiedName.Companion.from(...)} consistently across Java and Kotlin code.)
+ */
 public final class FullyQualifiedName
 {
     public static final Companion Companion = new Companion();
@@ -137,6 +152,7 @@ public final class FullyQualifiedName
         {
         }
 
+        /** Splits a {@code "module::name"} string at the last {@code ::}; a bare name has no module. */
         public @NotNull FullyQualifiedName parse(@NotNull String string)
         {
             int separator = string.lastIndexOf("::");

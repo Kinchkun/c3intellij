@@ -12,7 +12,14 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 
 /**
- * Undocumented Class
+ * The PSI node representing a whole C3 source file – the root of the tree for one file.
+ *
+ * <p>PSI ("Program Structure Interface") is IntelliJ's typed, navigable model of source code. Every
+ * other C3 PSI element (modules, functions, statements...) lives underneath a {@code C3File}. By
+ * extending {@link PsiFileBase} we get the standard file behaviour for free; we only need to declare
+ * which language and file type we are.
+ *
+ * <p>Created by {@link org.c3lang.intellij.C3ParserDefinition#createFile}.
  *
  * @author Christoffer Lerno
  */

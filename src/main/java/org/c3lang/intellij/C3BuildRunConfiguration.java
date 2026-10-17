@@ -13,6 +13,25 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * A "Run Project" configuration – it knows how to launch {@code c3c run <target>} for the project.
+ *
+ * <p>This is the representative example of IntelliJ's execution framework, which is made of four
+ * cooperating pieces (see also the {@code C3*RunConfiguration*} siblings):
+ * <ol>
+ *   <li>{@link ConfigurationType} ({@link C3ConfigurationType}) – the family shown in the UI.</li>
+ *   <li>{@link ConfigurationFactory} ({@code C3BuildRunConfigurationFactory}) – creates instances of
+ *       this class with sensible defaults.</li>
+ *   <li>the configuration itself (this class) – holds the user's settings, delegating storage to an
+ *       options object ({@code C3CompileRunConfigurationOptions}, persisted to the run config XML).</li>
+ *   <li>a {@link SettingsEditor} ({@code C3BuildRunEditor}, returned by {@link #getConfigurationEditor})
+ *       – the form the user edits.</li>
+ * </ol>
+ *
+ * <p>When the user presses Run, the platform calls {@link #getState}; we return a
+ * {@link CommandLineState} that assembles a {@link GeneralCommandLine} invoking the {@code c3c}
+ * compiler and streams its output to the Run console.
+ */
 public class C3BuildRunConfiguration extends RunConfigurationBase<C3CompileRunConfigurationOptions>
 {
     protected C3BuildRunConfiguration(Project project, ConfigurationFactory factory, String name)

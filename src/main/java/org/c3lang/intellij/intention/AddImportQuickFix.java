@@ -23,6 +23,17 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+/**
+ * The "Add import {@code <module>}" quick fix – the worked example of a {@code LocalQuickFix}.
+ *
+ * <p>A quick fix is the actionable half of an inspection (the lightbulb / Alt-Enter action). An
+ * inspection that finds an unresolved name attaches this fix; when the user invokes it,
+ * {@link #invoke} runs inside a {@link WriteCommandAction} (so the edit is a single undoable step) and
+ * inserts the appropriate {@code import} statement into the file's module section.
+ *
+ * <p>{@link #getText()}/{@link #getFamilyName()} are the labels shown in the UI. The same logic is
+ * reused by completion to auto-insert imports when a suggestion from another module is accepted.
+ */
 public class AddImportQuickFix extends LocalQuickFixAndIntentionActionOnPsiElement
 {
     public static final Companion Companion = new Companion();

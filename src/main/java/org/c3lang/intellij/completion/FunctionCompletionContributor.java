@@ -47,6 +47,19 @@ import static com.intellij.patterns.PlatformPatterns.and;
 import static com.intellij.patterns.PlatformPatterns.psiElement;
 import static com.intellij.patterns.StandardPatterns.or;
 
+/**
+ * Suggests functions and macros when completing a call or path expression.
+ *
+ * <p>This is the representative completion provider. Like resolution, it draws its candidates from the
+ * project-wide {@link NameIndex} (via {@link StubIndex}) rather than parsing files: it walks the index
+ * keys, keeps those matching what the user typed, ranks them by closeness (same file &gt; same module
+ * &gt; imported), and builds a {@link LookupElement} for each – complete with the parameter/return
+ * types pulled from the stub. When a suggestion from another module is accepted, its insert handler
+ * adds the needed {@code import} (reusing {@link AddImportQuickFix}).
+ *
+ * <p>Registered indirectly: {@link org.c3lang.intellij.completion.C3CompletionContributor} adds this
+ * provider via {@code extend(...)}.
+ */
 public final class FunctionCompletionContributor extends CompletionProvider<CompletionParameters>
 {
     public static final FunctionCompletionContributor INSTANCE = new FunctionCompletionContributor();

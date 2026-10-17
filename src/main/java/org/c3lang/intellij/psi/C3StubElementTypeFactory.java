@@ -4,6 +4,19 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.stubs.IStubElementType;
 import org.c3lang.intellij.stubs.*;
 
+/**
+ * Maps a grammar rule name to the stub element type that should handle it.
+ *
+ * <p>{@code C3.bnf} declares which rules are stub-backed via its {@code elementTypeFactory(...)=
+ * stubFactory} directive listing rule names like {@code func_def|module|type_name|...}. The generated
+ * parser then calls {@link #stubFactory(String)} for each such rule to obtain the right
+ * {@link IStubElementType} (e.g. {@link C3FuncDefElementType}). In other words, this is the lookup
+ * table that turns "this rule should be indexed" into "use this stub machinery".
+ *
+ * <p>To make a new declaration stub-backed you: add it to the {@code elementTypeFactory} list in the
+ * grammar, add a constant + {@code case} here, and create the matching {@code *Stub}/{@code *ElementType}
+ * pair in the {@code stubs} package.
+ */
 public class C3StubElementTypeFactory {
     private final static Logger log = Logger.getInstance(C3StubElementTypeFactory.class);
 

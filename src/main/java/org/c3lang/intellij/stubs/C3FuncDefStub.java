@@ -16,6 +16,24 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * The indexed summary of a function definition – the worked example of a C3 stub.
+ *
+ * <p>A stub captures just enough about a declaration to answer cross-file questions (name, module,
+ * receiver type, return type, parameter types) <em>without</em> keeping the whole parsed function in
+ * memory. The IDE serializes these into its on-disk index and deserializes them on demand, which is
+ * why opening one file does not force every other file in the project to be parsed.
+ *
+ * <p>The three constructors are the three ways a stub comes to exist:
+ * <ul>
+ *   <li>field-by-field – the canonical constructor the others delegate to;</li>
+ *   <li>from a parsed {@link C3FuncDef} PSI element – used when indexing a freshly parsed file;</li>
+ *   <li>from a {@link StubInputStream} – used when reloading a stub from the index.</li>
+ * </ul>
+ * {@link #serialize} writes the fields back out; the read/write order must stay in sync, and any
+ * change here means bumping {@code C3FileElementType.STUB_VERSION}. The matching
+ * {@link C3FuncDefElementType} ties this stub to its PSI element and registers it into the index.
+ */
 public class C3FuncDefStub extends StubBase<C3FuncDef>
 {
 	private final @NotNull String sourceFileName;
@@ -127,6 +145,7 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 		return parameterTypes;
 	}
 
+	/** Writes the fields out in the same order the stream-reading constructor reads them back. */
 	public void serialize(@NotNull StubOutputStream dataStream) throws IOException
 	{
 		dataStream.writeUTFFast(sourceFileName);

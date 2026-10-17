@@ -1,0 +1,511 @@
+= HowTo: Understand & Maintain the C3 IntelliJ Plugin
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+This guide is written for someone who knows Java but has *never written an IntelliJ
+plugin*. It has two halves:
+
+* *Part A – Concepts from zero*: what an IntelliJ language plugin is and the building
+  blocks every such plugin has, with small generic examples.
+* *Part B – How _this_ plugin works*: each concept mapped onto the real files in this
+  repository, an end-to-end trace, and a cookbook for common changes.
+
+If you only read one thing, read <<the-mental-model>> and <<the-pipeline>>.
+
+TIP: A companion document, `SETUP.adoc`, covers getting the project building and running.
+This document is about *understanding the architecture* so you can change it.
+
+== Orientation
+
+[#the-mental-model]
+=== The mental model
+
+An IDE is, at heart, a program that *understands* your source code well enough to colour
+it, navigate it, complete it and refactor it. A *language plugin* teaches the IDE to do
+this for one language. To do that, the plugin must turn flat text into a structured,
+queryable model and then expose features built on that model.
+
+Everything flows from one chain. Read this once; the whole plugin is an elaboration of it:
+
+[#the-pipeline]
+[source]
+----
+            characters         tokens            tree of nodes        typed tree
+ .c3 file  ───────────►  Lexer ──────►  Parser ───────────────►  AST ──────────►  PSI
+                          │                                                         │
+                          │ (which chars are                                        │ everything else
+                          │  keywords, numbers,                                     │ (highlighting,
+                          │  strings, comments…)                                    │  completion,
+                          ▼                                                         ▼  go-to-def,
+                       "tokens"                                              refactoring…) reads PSI
+----
+
+* *Lexer* — splits raw text into *tokens* (the smallest meaningful pieces: a keyword, a
+  number, an identifier, a `+`).
+* *Parser* — arranges the token stream into a tree according to a *grammar* (an `if`
+  statement contains a condition and a body, a function contains a header and a block…).
+  The raw tree is the *AST* (Abstract Syntax Tree).
+* *PSI* — the *Program Structure Interface* is IntelliJ's typed, navigable wrapper over the
+  AST. This is the model every "smart" feature talks to: `C3FuncDef`, `C3CallExpr`,
+  `C3IfStmt`… Think of the AST as the bare skeleton and the PSI as the skeleton plus all
+  the methods you actually call (`getName()`, `getReference()`, `getParameterTypes()`).
+
+Almost every feature in this plugin is "walk the PSI tree and answer a question about it".
+
+[#generated-vs-handwritten]
+=== Generated vs. hand-written code (read this before you edit anything)
+
+A large part of a language plugin is *mechanical*: given a grammar, the lexer and the
+hundreds of PSI node classes can be produced automatically. This plugin uses two code
+generators:
+
+[cols="1,2,2",options="header"]
+|===
+| Source you edit | Generator | Output (DO NOT EDIT)
+| `src/main/java/org/c3lang/intellij/C3.flex` | JFlex | `src/main/gen/.../lexer/C3Lexer.java`
+| `src/main/java/org/c3lang/intellij/C3.bnf`  | Grammar-Kit | `src/main/gen/.../parser/`, `.../psi/` (≈ 370 files)
+|===
+
+[WARNING]
+====
+Everything under `src/main/gen/` is *generated* and is overwritten every time you
+regenerate. Never edit it by hand. If you need to change parsing or the shape of the PSI,
+edit `C3.bnf`/`C3.flex` and regenerate (see <<cookbook>>). Both `src/main/gen` and
+`src/main/java` are on the source path (`build.gradle.kts`), which is why generated and
+hand-written classes can freely reference each other.
+====
+
+So the code splits in three:
+
+. *Grammar sources* (`C3.bnf`, `C3.flex`) — you edit these to change the language shape.
+. *Generated code* (`src/main/gen`) — never edited; the lexer, parser, and all PSI
+  interfaces/impls.
+. *Hand-written code* (`src/main/java`) — everything else: the glue, the "intelligence"
+  (resolution, completion, inspections), and the *mixins* that inject your behaviour into
+  the generated PSI (see <<mixins>>).
+
+[#plugin-xml]
+=== `plugin.xml`: the registry that wires it all together
+
+`src/main/resources/META-INF/plugin.xml` is the *single source of truth for what the plugin
+contributes*. The IDE itself is built on *extension points*: named slots like
+"the parser for language X" or "an inspection for language Y". Your plugin fills slots by
+declaring `<extension>` elements. Nothing you write runs unless it is registered here (or
+created by something that is).
+
+A few representative lines (we'll meet each later):
+
+[source,xml]
+----
+<lang.parserDefinition language="C3" implementationClass="...C3ParserDefinition"/>
+<lang.syntaxHighlighterFactory language="C3" implementationClass="...C3SyntaxHighlighterFactory"/>
+<annotator language="C3" implementationClass="...annotation.C3Annotator"/>
+<completion.contributor language="C3" implementationClass="...completion.C3CompletionContributor"/>
+<stubIndex implementation="...index.NameIndex"/>
+<localInspection language="C3" implementationClass="...intention.C3DuplicateVariableInspection" .../>
+----
+
+Notice `language="C3"`: that string is the ID of our `Language` object (next section), and it
+is how the platform knows to route C3 files to *our* implementations.
+
+=== The build
+
+`build.gradle.kts` uses three relevant Gradle plugins:
+
+* `org.jetbrains.intellij.platform` — builds/packages the plugin and runs it inside a real
+  IDE sandbox (`runIde`). This project targets a *locally installed CLion* (see the
+  `local(...)` block) because C3's debugger integration reuses CLion's native (LLDB)
+  debugger.
+* `org.jetbrains.grammarkit` — provides the `generateLexer` task (and Grammar-Kit IDE
+  actions) that produce `src/main/gen`.
+* `org.jetbrains.changelog` — changelog management.
+
+== Part A — Concepts from zero
+
+Each section below is: *what the concept is* → *a tiny generic example* → a pointer to where
+this plugin does it (the detail is in Part B).
+
+=== 1. `Language` and `FileType`
+
+The *`Language`* is a singleton object that _is_ the identity of your language inside the
+IDE. The *`FileType`* says "files with these extensions contain this language".
+
+[source,java]
+----
+public final class MyLanguage extends Language {
+    public static final MyLanguage INSTANCE = new MyLanguage();
+    private MyLanguage() { super("MyLang"); }   // "MyLang" = the language ID
+}
+
+public final class MyFileType extends LanguageFileType {
+    public static final MyFileType INSTANCE = new MyFileType();
+    private MyFileType() { super(MyLanguage.INSTANCE); }
+    @Override public String getDefaultExtension() { return "ml"; }
+    // ...name, description, icon
+}
+----
+
+Then in `plugin.xml`: `<fileType ... language="MyLang" extensions="ml"/>`.
+
+→ In this plugin: `C3Language`, `C3SourceFileType` (`.c3`, `.c3t`), `C3InterfaceFileType` (`.c3i`).
+
+=== 2. The lexer (tokens)
+
+A *lexer* (a.k.a. tokenizer/scanner) reads characters and emits *tokens*. IntelliJ lexers
+are usually written in *JFlex* (`.flex`), a regex-driven state machine, and compiled to Java.
+
+[source]
+----
+// conceptually, the lexer turns:
+fn int add(int a) { return a + 1; }
+// into a stream of tokens:
+KW_FN  IDENT("int")  IDENT("add")  LP  ...  PLUS  INT_LITERAL("1")  ...
+----
+
+Tokens are `IElementType` instances. You group related tokens into `TokenSet`s so features
+can ask "is this a keyword/comment/operator?" without enumerating every token.
+
+→ In this plugin: `C3.flex` → generated `C3Lexer` → wrapped by `lexer/C3LexerAdapter`. Token
+groups live in `C3TokenSets`.
+
+=== 3. The parser and grammar (Grammar-Kit BNF)
+
+The *grammar* describes how tokens combine into language constructs. Grammar-Kit uses an
+extended BNF (`.bnf`). Each *rule* becomes both a parser production and a *PSI node type*.
+
+[source]
+----
+// a Grammar-Kit rule
+func_def ::= func_header fn_parameter_list compound_statement
+// Grammar-Kit generates: interface C3FuncDef, class C3FuncDefImpl, and a C3Types.FUNC_DEF
+// element type, plus parser code that recognises this rule.
+----
+
+The header of the `.bnf` configures naming (`psiClassPrefix = "C3"`, packages, etc.). You'll
+also see directives like `pin`, `extends`, `mixin`, `implements`, `elementTypeFactory` — the
+last three are how you customise the generated PSI (next two sections).
+
+→ In this plugin: `C3.bnf` → generated `C3Parser` and the whole `psi/` interface/impl set.
+
+=== 4. The PSI tree
+
+For every grammar rule, Grammar-Kit emits:
+
+* an *interface* `C3<Rule>` (e.g. `C3FuncDef`) with typed accessors for the rule's children
+  (`getFuncHeader()`, `getCompoundStatement()`…), and
+* an *implementation* `C3<Rule>Impl` extending `ASTWrapperPsiElement` (the standard
+  PSI node that wraps one AST node).
+
+The PSI tree mirrors the source: a `C3File` at the root, modules under it, declarations
+under those, and so on. You navigate it with helpers like
+`PsiTreeUtil.getParentOfType(element, C3FuncDef.class)` or
+`PsiTreeUtil.collectElementsOfType(scope, ...)`. You will use `PsiTreeUtil` constantly.
+
+→ In this plugin: base classes `psi/impl/C3PsiElementImpl` (non-stub) and
+`psi/impl/C3StubBasedPsiElementBase` (stub-backed); shared interfaces `psi/C3PsiElement`,
+`psi/C3PsiNamedElement`.
+
+[#mixins]
+=== 5. The mixin pattern — adding behaviour to generated code
+
+This is *the* technique to understand, because it's how all the "smart" behaviour attaches to
+the otherwise-mechanical PSI. You cannot edit generated `C3FuncDefImpl`. Instead Grammar-Kit
+lets you slot a hand-written class *into the inheritance chain* of a rule's generated impl:
+
+[source]
+----
+// in C3.bnf:
+mixin("func_def")      = "org.c3lang.intellij.psi.impl.C3FuncDefMixinImpl"  // your impl base
+implements("func_def") = "org.c3lang.intellij.psi.C3FuncDefMixin"          // your interface
+----
+
+The result:
+
+[source]
+----
+   C3FuncDefMixin       (you write — extra method signatures)
+        ▲
+   C3FuncDef            (generated — extends C3FuncDefMixin, adds child accessors)
+        ▲ implements
+   C3FuncDefImpl        (generated)  ──extends──►  C3FuncDefMixinImpl (you write — the logic)
+                                                          ▲
+                                              C3StubBasedPsiElementBase (or C3PsiElementImpl)
+----
+
+So: declare methods in the `*Mixin` interface, implement them in the `*MixinImpl` class, and
+every instance of that rule's PSI node gains them — without touching generated code, and
+surviving regeneration. The plugin has ~25 such mixins (see the top of `C3.bnf`).
+
+→ Worked example in this plugin: `psi/C3FuncDefMixin` + `psi/impl/C3FuncDefMixinImpl`.
+
+=== 6. Named elements, references and resolution
+
+Two ideas power navigation:
+
+* A *named element* (`PsiNameIdentifierOwner`) is a node that _declares_ a name — a function,
+  a type, a variable. It exposes `getName()` and `getNameIdentifier()`. This is what rename,
+  the structure view and go-to-symbol key off.
+* A *reference* (`PsiReference`) is a node that _uses_ a name and can point back to its
+  declaration. `resolve()` answers "what does this identifier refer to?" — that's
+  Ctrl-click / go-to-declaration. Find-usages is the same machinery run in reverse.
+
+[source,java]
+----
+public class MyRef extends PsiReferenceBase<PsiElement> {
+    @Override public PsiElement resolve() {
+        // look up the declaration this usage points to, return it (or null)
+    }
+}
+----
+
+C3 uses *poly-variant* references (`PsiPolyVariantReference`): one name may resolve to several
+declarations (e.g. overloads), so the core method returns a collection.
+
+→ In this plugin: `psi/C3PsiNamedElement` (declarations), `psi/reference/` (the reference
+framework), and the resolvers in `psi/impl/C3PathIdentMixinImpl`,
+`psi/impl/C3AccessIdentMixinImpl`, `psi/impl/C3BaseTypeMixinImpl`.
+
+=== 7. Stubs and stub indexes (why cross-file features are fast)
+
+Problem: to resolve a call to a function in another file, you'd have to parse that file. To
+complete a name, you'd have to parse _every_ file. That's far too slow.
+
+Solution: a *stub* is a tiny, serializable summary of a declaration (its name, type, module —
+not its body). The IDE builds a *stub tree* per file and stores it in a persistent
+*stub index* on disk. A *stub index* is a multimap `key → declarations`. Features query the
+index instead of parsing:
+
+[source]
+----
+"std::io::File"  ──►  [the C3TypeName PSI for File]
+"add"            ──►  [C3FuncDef add in module a, C3FuncDef add in module b]
+----
+
+When you Ctrl-click `add`, resolution asks the index "give me declarations whose name is
+`add`", gets stubs back, and only materialises the matching one — no project-wide parse.
+
+→ In this plugin: stub data classes in `stubs/`, the stub↔PSI bridges `stubs/C3*ElementType`,
+the index definitions in `index/` (`NameIndex` & friends), and query helpers
+`index/NameIndexService` / `index/StructService`. The file-level entry point is
+`C3FileElementType`.
+
+=== 8. Editor features built on the model
+
+With tokens + PSI + indexes in place, "features" are comparatively small classes registered in
+`plugin.xml`. The ones to know:
+
+* *Syntax highlighter* (`SyntaxHighlighter`) — colours *tokens* (fast, lexer-only).
+* *Annotator* (`Annotator`) — runs on every PSI element on every keystroke; adds semantic
+  colours and cheap inline errors/warnings. No quick fixes.
+* *Local inspection* (`LocalInspectionTool`) — a heavier, separate analysis pass that can
+  report problems *and* attach *quick fixes* (the Alt-Enter lightbulb). Use an inspection when
+  you want an actionable fix or non-trivial analysis; an annotator when you just want fast
+  highlighting/validation.
+* *Completion contributor* (`CompletionContributor`) — fills the Ctrl-Space popup.
+* Plus: brace matcher, commenter, formatter, structure view, breadcrumbs, find-usages
+  provider, documentation provider, parameter info… each a small registered class.
+
+=== 9. The project model: SDK, run configurations, settings & services
+
+Beyond understanding code, the plugin integrates C3 as a *project*:
+
+* *`SdkType`* — describes a C3 SDK (where `c3c` and the standard library live) and validates it.
+* *Library roots providers* — expose the stdlib and `.c3l` libraries to the indexer so their
+  symbols resolve and complete.
+* *Run configurations* — the Run/Debug framework (detailed in Part B): a `ConfigurationType`
+  groups `ConfigurationFactory`s, each producing a `RunConfiguration` whose settings live in an
+  `Options` object and are edited via a `SettingsEditor`; running calls `getState()` to build a
+  command line that invokes `c3c`.
+* *Services & `PersistentStateComponent`* — singletons (application- or project-scoped) that
+  hold state; implementing `PersistentStateComponent` makes that state survive restarts.
+
+== Part B — How _this_ plugin works
+
+=== Directory map
+
+[source]
+----
+src/main/java/org/c3lang/intellij/
+├── C3.bnf, C3.flex            Grammar & lexer sources (you edit; everything in gen/ derives from these)
+├── C3Language                 The language singleton (id "C3")
+├── C3SourceFileType / C3InterfaceFileType   .c3/.c3t and .c3i file types
+├── C3ParserDefinition         GLUE: wires lexer + parser + PSI file/element factories
+├── C3FileElementType          File root node + stub-tree builder entry point
+├── C3TokenSets                Named groups of token types
+├── C3Annotator                Main semantic highlighter/validator (the workhorse)
+├── C3SyntaxHighlighter*       Token-level colouring
+├── C3*RunConfiguration*, C3ConfigurationType, C3*RunEditor   Run/Debug/Build configs
+├── C3SdkType, C3*RootsProvider, C3ProjectManifest            Project/SDK model
+├── C3SettingsState, C3CompilerConfigurable                   Settings
+├── lexer/        C3LexerAdapter (wraps generated C3Lexer)
+├── psi/          Hand-written PSI: C3PsiElement(Named), the *Mixin interfaces, references
+│   └── impl/         The *MixinImpl classes (the real PSI behaviour) + base impls
+├── stubs/        Stub data classes + stub↔PSI element types
+├── index/        Stub index definitions (NameIndex…) + query services
+├── completion/   C3CompletionContributor + one provider per context
+├── intention/    Inspections + quick fixes + intentions
+├── annotation/   Registered Annotator entry point + doc-comment annotator
+├── findUsages/   Find-usages provider, usage-type & read/write detectors
+├── docs/         Quick documentation (hover/F1) provider
+├── debugger/     LLDB/CIDR debugger integration (CLion)
+├── autorerun/    "Re-run on change" feature (listeners + debounced service)
+├── refactoring/, navigation/, structure/, formatter/, injection/, settings/, wizard/, actions/
+└── src/main/gen/ ── GENERATED (lexer, parser, all C3* PSI interfaces/impls) — never edit
+----
+
+=== The pipeline, concretely
+
+. A `.c3` file is recognised as `C3SourceFileType` → language `C3`.
+. The platform looks up the `C3` `lang.parserDefinition` and finds `C3ParserDefinition`. It
+  calls `createLexer()` → `C3LexerAdapter` (wrapping the JFlex-generated `C3Lexer`).
+. Tokens flow into `createParser()` → `C3Parser` (generated from `C3.bnf`), producing the AST.
+. `createFile()`/`createElement()` wrap nodes as PSI: a `C3File` root and `C3*` nodes via the
+  generated `C3Types.Factory`. Rules with a `mixin(...)` get their hand-written behaviour here.
+. In parallel, `C3FileElementType` builds the file's *stub tree*; each stub-backed declaration's
+  `C3*ElementType.indexStub(...)` files it into the relevant index under its key.
+. Editor features (`C3Annotator`, `C3CompletionContributor`, inspections…) read the PSI and
+  query the indexes to do their work.
+
+[#trace]
+=== End-to-end trace: Ctrl-click a function call
+
+Say the caret is on `parse` in `cfg.parse(text)` and you press Ctrl-click:
+
+. The platform asks the PSI element under the caret for its reference. For a path identifier
+  that's `C3PathIdentMixinImpl.getReference()`.
+. `getReference()` inspects the context and, since this is a *call*, returns its inner
+  `C3FuncNameReference` (it would instead return a local/parameter/struct-member reference in
+  other positions — locals and parameters are checked first because they shadow globals).
+. `C3FuncNameReference.multiResolve()` asks `NameIndexService.findByNameEndsWith("parse", …)`.
+  That iterates the keys of `NameIndex` (the stub index `c3.name`) and returns matching
+  declarations — *without parsing their files*.
+. It then keeps only the candidates that are *visible* here: same module, or imported
+  (`moduleDefinition.containsImportOrSameModule(el)`).
+. The surviving `C3FuncDef`(s) are returned; the IDE jumps to the declaration. Its signature
+  comes straight from the stub (`C3FuncDefStub`), so even the target file need not be parsed.
+
+Completion works the same way in reverse: `FunctionCompletionContributor` walks `NameIndex`
+keys, keeps prefix matches, ranks them (same file > same module > imported), and builds a
+lookup item per candidate using stub data — adding an `import` automatically (via
+`AddImportQuickFix`) if you accept one from another module.
+
+=== Where the stub/index data comes from
+
+Using the function example (the pattern is identical for types, constants, etc.):
+
+* `stubs/C3FuncDefStub` — the serializable summary (name, module, receiver type, return type,
+  parameter types). Its `serialize`/stream-constructor must stay in lock-step.
+* `stubs/C3FuncDefElementType` — the bridge: `createStub` (from parsed PSI), `createPsi` (from a
+  stub), `serialize`/`deserialize`, and `indexStub` (files the FQN into `NameIndex`).
+* `psi/C3StubElementTypeFactory` — maps the grammar rule name (`"FUNC_DEF"`) to that element
+  type; the grammar's `elementTypeFactory(...)` directive lists which rules are stub-backed.
+* `psi/impl/C3FuncDefMixinImpl` — the PSI behaviour. Note the *stub-first* pattern: each getter
+  reads from `getGreenStub()` when a stub is present (cheap) and falls back to walking the AST
+  only when it isn't.
+* `C3FileElementType.STUB_VERSION` — bump this whenever stub layout/PSI changes, so the IDE
+  rebuilds its index instead of choking on a stale one.
+
+[#cookbook]
+=== Cookbook: common changes
+
+==== Regenerate after editing the grammar/lexer
+
+After changing `C3.bnf` or `C3.flex` you *must* regenerate `src/main/gen`:
+
+* *Parser/PSI* (`C3.bnf`): in the IDE, right-click `C3.bnf` → *Generate Parser Code* (Grammar-Kit).
+* *Lexer* (`C3.flex`): run the Gradle task `generateLexer`, or use the JFlex IDE action.
+
+Then rebuild. (See also `SETUP.adoc`.) If resolution/highlighting misbehaves after a stub
+change, bump `C3FileElementType.STUB_VERSION` and/or use *File → Invalidate Caches*.
+
+==== Add a new keyword / token
+
+. Add the keyword's pattern to `C3.flex` so the lexer emits a token for it.
+. Reference the token where it's used in `C3.bnf`.
+. Add the generated `C3Types.KW_*` constant to the right group in `C3TokenSets` (e.g.
+  `KEYWORDS`) so highlighting picks it up.
+. Regenerate lexer + parser; rebuild.
+
+==== Add behaviour to an existing construct (a mixin)
+
+. In `C3.bnf` add (or extend) `mixin("<rule>") = "...C3<Rule>MixinImpl"` and
+  `implements("<rule>") = "...C3<Rule>Mixin"`.
+. Create the `C3<Rule>Mixin` interface (method signatures) and `C3<Rule>MixinImpl` class
+  (extending `C3PsiElementImpl`, or `C3StubBasedPsiElementBase` if it should be indexed).
+. Regenerate; the generated `C3<Rule>Impl` now extends your impl. Model it on
+  `C3FuncDefMixinImpl`.
+
+==== Make a declaration searchable across files (a stub)
+
+. Add the rule name to the `elementTypeFactory(...)` list in `C3.bnf`.
+. Add a constant + `case` in `psi/C3StubElementTypeFactory`.
+. Create the `stubs/C3<X>Stub` (data + serialize) and `stubs/C3<X>ElementType` (bridge +
+  `indexStub`) pair, modelled on the `C3FuncDef*` ones.
+. If you need a new lookup key, add an `index/<Name>Index` and register it in `plugin.xml`.
+. Bump `C3FileElementType.STUB_VERSION`. Regenerate; rebuild.
+
+==== Add an inspection + quick fix
+
+. Write a `LocalInspectionTool` (model on `intention/C3DuplicateVariableInspection`): override
+  `buildVisitor` and call `holder.registerProblem(...)`.
+. Optionally attach a `LocalQuickFix`/`...OnPsiElement` (model on `intention/AddImportQuickFix`);
+  do edits inside a `WriteCommandAction`.
+. Register it in `plugin.xml` under `<localInspection language="C3" .../>` and add a short
+  HTML description under `src/main/resources/inspectionDescriptions/`.
+
+==== Add a completion suggestion
+
+. Write a `CompletionProvider` (model on `completion/FunctionCompletionContributor`); draw
+  candidates from an index where possible rather than parsing.
+. Register it by adding one `extend(CompletionType.BASIC, pattern, YourProvider.INSTANCE)` line
+  in `completion/C3CompletionContributor` (order matters; `stopHere()` suppresses later
+  providers).
+
+==== Build, run, and test
+
+* Build: `./gradlew build`
+* Run the plugin in a sandbox IDE: `./gradlew runIde` (launches the configured CLion with the
+  plugin loaded), or the *Run Plugin* run config in `.run/`.
+* Tests: `./gradlew test`. Tests live in `src/test/java/...` and use the platform test
+  framework (e.g. `C3ResolveTest`, `C3EnumCompletionTest`, `C3DuplicateVariableTest`).
+
+== Appendix
+
+=== Glossary
+
+[cols="1,4",options="header"]
+|===
+| Term | Meaning
+| Token / `IElementType` | The smallest lexed unit (a keyword, number, operator). Also the type tag carried by every AST/PSI node.
+| Lexer | Turns characters into tokens. Here: JFlex (`C3.flex`).
+| Parser | Turns tokens into a tree per the grammar. Here: Grammar-Kit (`C3.bnf`).
+| AST | Abstract Syntax Tree — the raw parsed tree of `ASTNode`s.
+| PSI | Program Structure Interface — IntelliJ's typed, navigable model over the AST; what features use.
+| Mixin | A hand-written interface+impl injected into a generated PSI class's hierarchy via `C3.bnf`, so you can add behaviour without editing generated code.
+| Stub | A small, serializable summary of a declaration, stored in the index so cross-file features avoid parsing.
+| Stub index | A persistent `key → declarations` multimap built from stubs (e.g. `NameIndex`).
+| Reference | A usage of a name that can `resolve()` to its declaration (powers Ctrl-click, find-usages, rename).
+| FQN | Fully-Qualified Name — `module::name`; the key under which declarations are indexed (`psi/FullyQualifiedName`).
+| Extension point | A named slot in the IDE that plugins fill via `<extension>` in `plugin.xml`.
+| Annotator | Fast, per-element, per-keystroke highlighting/validation. No quick fixes.
+| Inspection | Heavier analysis pass that reports problems and can offer quick fixes.
+| SDK / `SdkType` | The configured C3 toolchain (`c3c` + stdlib) the plugin builds/runs against.
+|===
+
+=== Gotchas
+
+* *Never edit `src/main/gen`.* Edit `C3.bnf`/`C3.flex` and regenerate.
+* *Most overridden methods can't be renamed* — they're platform API contracts
+  (`createLexer`, `getName`, `multiResolve`…). Add comments, not new names.
+* *Forgot to regenerate?* Symptoms: new grammar rules don't parse, new PSI accessors don't
+  exist. Regenerate parser + lexer.
+* *Stale index after a stub change?* Bump `C3FileElementType.STUB_VERSION` and/or
+  *Invalidate Caches & Restart*.
+* *A class isn't running?* Check it's registered in `plugin.xml` (or created by something that
+  is). Unregistered classes are inert.
+* *Resolution returns too many/few results?* Remember the deliberate split: `NameIndexService`
+  matches on *name* only; *module visibility* is filtered separately by the caller's import
+  check.

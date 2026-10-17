@@ -6,6 +6,7 @@ import com.intellij.codeInspection.LocalQuickFix;
 import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.ProblemsHolder;
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -13,7 +14,10 @@ import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.psi.C3BaseType;
 import org.c3lang.intellij.psi.C3File;
 import org.c3lang.intellij.psi.C3FullyQualifiedNamePsiElement;
+import org.c3lang.intellij.psi.C3GenericDecl;
+import org.c3lang.intellij.psi.C3Module;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
+import org.c3lang.intellij.psi.C3ModuleParam;
 import org.c3lang.intellij.psi.C3TypeName;
 import org.c3lang.intellij.psi.C3Visitor;
 import org.c3lang.intellij.psi.ModuleName;
@@ -35,8 +39,9 @@ import java.util.Set;
  *   <li>qualified usages ({@code mod::Type}) are handled by {@link ImportModuleInspection};</li>
  *   <li>a type that is already visible (same module, imported, or auto-imported {@code std::core})
  *       is not flagged;</li>
- *   <li>a name with no matching type declaration anywhere is left alone — it may be a generic/type
- *       parameter or simply unknown, and there is no import to offer.</li>
+ *   <li>a name declared in another module gets an import quick fix; a name with no matching type
+ *       declaration anywhere is flagged as unresolved (no fix), unless it is an in-scope generic/type
+ *       parameter ({@code <Type>}), which legitimately resolves to no declaration.</li>
  * </ul>
  */
 public final class C3UnresolvedTypeInspection extends LocalInspectionTool
@@ -76,9 +81,11 @@ public final class C3UnresolvedTypeInspection extends LocalInspectionTool
 				if (moduleSection == null) return;
 
 				Set<ModuleName> importable = new LinkedHashSet<>();
+				boolean declaredSomewhere = false;
 				for (C3FullyQualifiedNamePsiElement el : NameIndexService.INSTANCE.findType(baseType, project))
 				{
 					if (!(el instanceof C3TypeName)) continue;
+					declaredSomewhere = true;
 					ModuleName module = el.getModuleName();
 					if (module == null) continue;
 
@@ -87,17 +94,69 @@ public final class C3UnresolvedTypeInspection extends LocalInspectionTool
 					importable.add(module);
 				}
 
-				if (importable.isEmpty()) return; // No such type anywhere — nothing to import.
+				if (!importable.isEmpty())
+				{
+					// Declared in another, un-imported module: offer an import quick fix per module.
+					List<LocalQuickFix> fixes = new ArrayList<>();
+					for (ModuleName module : importable) fixes.add(new C3ImportTypeQuickFix(module));
 
-				List<LocalQuickFix> fixes = new ArrayList<>();
-				for (ModuleName module : importable) fixes.add(new C3ImportTypeQuickFix(module));
+					holder.registerProblem(
+						nameElement,
+						"Unresolved type '" + name + "' — not imported",
+						ProblemHighlightType.GENERIC_ERROR,
+						fixes.toArray(LocalQuickFix.EMPTY_ARRAY));
+					return;
+				}
+
+				// A type by this name exists but not in a named module (rare) — leave it alone.
+				if (declaredSomewhere) return;
+
+				// No such type declared anywhere. It may still be an in-scope generic/type parameter
+				// (`<Type>`), which legitimately resolves to no declaration — don't flag those.
+				if (isGenericParameterInScope(baseType, name)) return;
 
 				holder.registerProblem(
 					nameElement,
-					"Unresolved type '" + name + "' — not imported",
-					ProblemHighlightType.GENERIC_ERROR,
-					fixes.toArray(LocalQuickFix.EMPTY_ARRAY));
+					"Unresolved type '" + name + "'",
+					ProblemHighlightType.GENERIC_ERROR);
 			}
 		};
+	}
+
+	/**
+	 * Whether {@code name} names a generic/type parameter ({@code <Type>}) declared on an enclosing
+	 * declaration or on the enclosing module — such a name legitimately resolves to no type
+	 * declaration and must not be flagged as unresolved.
+	 */
+	private static boolean isGenericParameterInScope(@NotNull C3BaseType baseType, @NotNull String name)
+	{
+		// Declaration-level parameters (struct / typedef / enum / ... `<Type>`) sit on an ancestor.
+		for (PsiElement cur = baseType; cur != null && !(cur instanceof C3File); cur = cur.getParent())
+		{
+			C3GenericDecl generics = PsiTreeUtil.getChildOfType(cur, C3GenericDecl.class);
+			if (generics != null && declaresParam(generics, name)) return true;
+		}
+
+		// Module-level parameters live on the `module` statement, a sibling of the declarations.
+		C3ModuleDefinition section = PsiTreeUtil.getParentOfType(baseType, C3ModuleDefinition.class);
+		if (section != null)
+		{
+			C3Module module = PsiTreeUtil.getChildOfType(section, C3Module.class);
+			if (module != null && module.getGenericDecl() != null
+				&& declaresParam(module.getGenericDecl(), name))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean declaresParam(@NotNull C3GenericDecl generics, @NotNull String name)
+	{
+		for (C3ModuleParam param : generics.getModuleParams().getModuleParamList())
+		{
+			if (name.equals(param.getText().trim())) return true;
+		}
+		return false;
 	}
 }

@@ -13,6 +13,16 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 
+/**
+ * Shared base for all C3 references. Concrete subclasses only implement {@link #multiResolve()}.
+ *
+ * <p>{@link PsiPolyVariantReferenceBase} provides the boilerplate (text range, caching hooks...). This
+ * base bridges the platform's {@code ResolveResult[]} world to our simpler {@link #multiResolve()}
+ * that returns {@link C3PsiElement}s, narrows {@link #resolve()} to a C3 type, and routes renames
+ * through {@link #doRename} so the same identifier-rewrite logic is reused everywhere.
+ *
+ * @param <T> the type of usage-site element this reference is attached to
+ */
 public abstract class C3ReferenceBase<T extends C3PsiElement> extends PsiPolyVariantReferenceBase<T>
 	implements C3Reference
 {
@@ -24,6 +34,7 @@ public abstract class C3ReferenceBase<T extends C3PsiElement> extends PsiPolyVar
 	@Override
 	public @Nullable C3PsiElement resolve()
 	{
+		// Reduce the polyvariant results to a single best match (the platform picks the first).
 		PsiElement resolved = super.resolve();
 		return resolved instanceof C3PsiElement ? (C3PsiElement) resolved : null;
 	}
@@ -31,6 +42,7 @@ public abstract class C3ReferenceBase<T extends C3PsiElement> extends PsiPolyVar
 	@Override
 	public ResolveResult @NotNull [] multiResolve(boolean incompleteCode)
 	{
+		// Adapt our C3PsiElement results to the platform's ResolveResult[] contract.
 		Collection<C3PsiElement> results = multiResolve();
 		ResolveResult[] array = new ResolveResult[results.size()];
 		int i = 0;
@@ -66,6 +78,7 @@ public abstract class C3ReferenceBase<T extends C3PsiElement> extends PsiPolyVar
 		return myElement.hashCode();
 	}
 
+	/** Rewrites an identifier's text during a rename, handling both raw leaf tokens and named elements. */
 	public static void doRename(@NotNull PsiElement element, @NotNull String newName)
 	{
 		if (element instanceof LeafPsiElement)

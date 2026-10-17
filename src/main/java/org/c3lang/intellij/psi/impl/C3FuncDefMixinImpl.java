@@ -11,6 +11,22 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
+/**
+ * Hand-written behaviour for a C3 function definition ({@code func_def} rule).
+ *
+ * <p>This is the canonical worked example of the mixin pattern (see {@link org.c3lang.intellij.psi.C3FuncDefMixin}).
+ * The generated {@code C3FuncDefImpl} extends this class, so the methods here become part of every
+ * function-definition PSI element.
+ *
+ * <p><strong>Stub-first pattern:</strong> notice how almost every getter first asks
+ * {@code getGreenStub()}. When the IDE only has the indexed stub (the file has not been parsed), the
+ * answer comes straight from the cheap stub data. Only when there is no stub do we fall back to
+ * walking the parsed AST ({@code getFuncHeader()...}). This is what makes cross-file features fast:
+ * resolving or completing a call elsewhere never forces this file to be fully parsed.
+ *
+ * <p>The constructors mirror the three modes of {@link C3StubBasedPsiElementBase} (AST-only,
+ * stub-only, and both).
+ */
 public abstract class C3FuncDefMixinImpl extends C3StubBasedPsiElementBase<C3FuncDefStub> implements C3FuncDef
 {
 	public C3FuncDefMixinImpl(@NotNull ASTNode node)
@@ -37,6 +53,7 @@ public abstract class C3FuncDefMixinImpl extends C3StubBasedPsiElementBase<C3Fun
 	@Override
 	public @NotNull PsiElement setName(@NotNull String name)
 	{
+		// Rename: physically replace the identifier token's text. Invoked via NamedElementManipulator.
 		LeafPsiElement ident = getNameIdentElement();
 		if (ident != null) ident.replaceWithText(name);
 		return this;
@@ -58,6 +75,7 @@ public abstract class C3FuncDefMixinImpl extends C3StubBasedPsiElementBase<C3Fun
 	@Override
 	public @Nullable LeafPsiElement getNameIdentElement()
 	{
+		// The function's name token is the last child of its func_name node (after any receiver type).
 		PsiElement last = getFuncHeader().getFuncName().getLastChild();
 		return last instanceof LeafPsiElement ? (LeafPsiElement) last : null;
 	}
@@ -79,6 +97,7 @@ public abstract class C3FuncDefMixinImpl extends C3StubBasedPsiElementBase<C3Fun
 	@Override
 	public @NotNull FullyQualifiedName getFqName()
 	{
+		// Stub-first: read the precomputed FQN from the index when available, else derive it from the AST.
 		C3FuncDefStub s = getGreenStub();
 		return s != null ? s.getFqName() : FullyQualifiedName.Companion.from(getFuncHeader(), getModuleName());
 	}

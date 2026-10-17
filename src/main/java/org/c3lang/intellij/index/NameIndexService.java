@@ -13,6 +13,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Query helper on top of {@link NameIndex} – the read side of the name index.
+ *
+ * <p>While {@code NameIndex} defines the index, this service answers the questions resolution and
+ * completion actually ask: "find declarations whose name ends with X" (call resolution),
+ * "...starts with prefix X" (members of a type), and "find the declaration of this type reference".
+ * Each method iterates the index keys, filters, and loads the matching PSI elements.
+ *
+ * <p>Note the deliberate split of responsibilities: this service matches on <em>name</em> only and
+ * leaves <em>module visibility</em> (is it imported here?) to the caller, so that a type/function
+ * imported from another module still surfaces as a candidate. See {@code keyMatchesType} for detail.
+ */
 public final class NameIndexService
 {
     public static final NameIndexService INSTANCE = new NameIndexService();
@@ -21,6 +33,7 @@ public final class NameIndexService
     {
     }
 
+    /** Declarations whose full {@code module::name} key ends with {@code name} – used for call resolution. */
     @NotNull
     public Collection<C3FullyQualifiedNamePsiElement> findByNameEndsWith(@NotNull String name, @NotNull Project project)
     {

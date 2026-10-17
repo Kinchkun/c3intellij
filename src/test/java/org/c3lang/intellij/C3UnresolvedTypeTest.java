@@ -48,11 +48,25 @@ public class C3UnresolvedTypeTest extends BasePlatformTestCase
 			"module stunk::settings;\nfn void foo(int* data) {}\n"));
 	}
 
-	/** Probe: a name with no type declaration anywhere is left alone (no import to offer). */
-	public void testUnknownTypeIsNotFlagged()
+	/** A name with no type declaration anywhere is flagged as unresolved (no import fix to offer). */
+	public void testUnknownTypeIsFlagged()
+	{
+		assertEquals(1, unresolvedTypeErrors(
+			"module stunk::settings;\nfn void foo(Nonexistent* data) {}\n"));
+	}
+
+	/** A module-level generic parameter resolves to no declaration but is not an error. */
+	public void testModuleGenericParameterIsNotFlagged()
 	{
 		assertEquals(0, unresolvedTypeErrors(
-			"module stunk::settings;\nfn void foo(Nonexistent* data) {}\n"));
+			"module stunk::gen <Type>;\nfn void foo(Type* data) {}\n"));
+	}
+
+	/** A generic parameter declared on the enclosing declaration is not an error. */
+	public void testDeclarationGenericParameterIsNotFlagged()
+	{
+		assertEquals(0, unresolvedTypeErrors(
+			"module stunk::settings;\nstruct Wrap <Type> { Type value; }\n"));
 	}
 
 	public void testImportQuickFixAddsImport()

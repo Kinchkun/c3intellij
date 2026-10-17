@@ -15,6 +15,14 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Adds references that the generated PSI doesn't expose, without needing a grammar mixin
  * (and therefore without requiring parser regeneration).
+ *
+ * <p>This is the alternative to attaching a reference via a {@code *MixinImpl.getReference()}: instead
+ * of changing the grammar, we register a {@link PsiReferenceProvider} against a PSI pattern. The
+ * platform calls our provider for every element matching the pattern and we hand back the reference.
+ *
+ * <p>Registered in {@code plugin.xml} via {@code <psi.referenceContributor language="C3" .../>}. To
+ * make a new kind of element navigable this way, add another {@code registerReferenceProvider(...)}
+ * call below with the element pattern and the {@link C3ReferenceBase} subclass to attach.
  */
 public final class C3ReferenceContributor extends PsiReferenceContributor
 {

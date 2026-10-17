@@ -7,7 +7,18 @@ import org.c3lang.intellij.psi.C3Types;
 
 
 /**
- * Token groups
+ * Named groupings of token types.
+ *
+ * <p>A {@link TokenSet} is just an immutable set of {@link com.intellij.psi.tree.IElementType}s. The
+ * individual token types (one per keyword, operator, literal kind...) are generated into
+ * {@link C3Types} from {@code C3.bnf}/{@code C3.flex}; this file bundles them into meaningful groups
+ * so the rest of the plugin can ask questions like "is this a comment?" or "is this a keyword?"
+ * without listing every token by hand.
+ *
+ * <p>Used by, among others, {@link C3ParserDefinition} (whitespace/comment/string classification) and
+ * the syntax highlighter (to colour keywords, types, operators, numbers...). When you add a new
+ * keyword or operator to the grammar, add its generated {@code C3Types} constant to the appropriate
+ * set here so existing features pick it up.
  *
  * @author Christoffer Lerno
  */
