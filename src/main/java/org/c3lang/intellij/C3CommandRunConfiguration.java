@@ -20,6 +20,10 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * A project-level run configuration that invokes a single {@code c3c} subcommand
  * (e.g. {@code test}, {@code docgen}) in a working directory with optional extra arguments.
@@ -103,8 +107,11 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
 
                 // Split the args by spaces: GeneralCommandLine would otherwise quote a value
                 // containing spaces and produce invalid syntax (e.g. c3c test "--param value").
+                List<String> parameters = new ArrayList<>();
                 String args = getArgs();
-                if (args != null && !args.isEmpty()) commandLine.addParameters(args.split(" "));
+                if (args != null && !args.isEmpty()) parameters.addAll(Arrays.asList(args.split(" ")));
+                if (isTestCommand()) C3SettingsState.getInstance().addTestSanitizer(parameters);
+                commandLine.addParameters(parameters);
 
                 commandLine.setWorkDirectory(getWorkingDirectory());
 

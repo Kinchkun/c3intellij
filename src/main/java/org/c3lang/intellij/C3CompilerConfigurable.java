@@ -19,6 +19,7 @@ public class C3CompilerConfigurable implements SearchableConfigurable, Configura
 {
     private JPanel panel;
     private TextFieldWithBrowseButton pathField;
+    private JCheckBox testWithAsanBox;
 
     public C3CompilerConfigurable()
     {
@@ -38,7 +39,11 @@ public class C3CompilerConfigurable implements SearchableConfigurable, Configura
     {
         panel = new JPanel(new BorderLayout(10, 5));
         final JPanel contentPanel = new JPanel(new BorderLayout(4, 0));
-        panel.add(contentPanel, BorderLayout.NORTH);
+        final JPanel northPanel = new JPanel(new BorderLayout(0, 8));
+        panel.add(northPanel, BorderLayout.NORTH);
+        northPanel.add(contentPanel, BorderLayout.NORTH);
+        testWithAsanBox = new JCheckBox("Run tests with AddressSanitizer (--sanitize=address)");
+        northPanel.add(testWithAsanBox, BorderLayout.SOUTH);
         contentPanel.add(new JLabel("C3 Compiler"), BorderLayout.WEST);
         pathField = new TextFieldWithBrowseButton();
         contentPanel.add(pathField);
@@ -53,18 +58,22 @@ public class C3CompilerConfigurable implements SearchableConfigurable, Configura
 
     @Override public boolean isModified()
     {
-        String sdk = C3SettingsState.getInstance().sdk;
-        return !pathField.getText().equals(sdk);
+        C3SettingsState settings = C3SettingsState.getInstance();
+        return !pathField.getText().equals(settings.sdk) || testWithAsanBox.isSelected() != settings.testWithAsan;
     }
 
 
     @Override public void apply()
     {
-        C3SettingsState.getInstance().sdk = pathField.getText();
+        C3SettingsState settings = C3SettingsState.getInstance();
+        settings.sdk = pathField.getText();
+        settings.testWithAsan = testWithAsanBox.isSelected();
     }
 
     @Override public void reset()
     {
-        pathField.setText(C3SettingsState.getInstance().sdk);
+        C3SettingsState settings = C3SettingsState.getInstance();
+        pathField.setText(settings.sdk);
+        testWithAsanBox.setSelected(settings.testWithAsan);
     }
 }

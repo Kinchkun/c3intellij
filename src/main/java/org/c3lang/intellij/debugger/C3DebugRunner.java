@@ -108,6 +108,7 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 			binaryArgs = null;
 			buildArguments.add("test");
 			addBuildArgs(buildArguments, configuration.getArgs());
+			C3SettingsState.getInstance().addTestSanitizer(buildArguments);
 			buildArguments.add("--suppress-run"); // build the test binary, don't run it
 		}
 		else

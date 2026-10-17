@@ -8,12 +8,15 @@ import com.intellij.util.xmlb.XmlSerializerUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.List;
 
 @State(name = "org.intellij.sdk.settings.AppSettingsState", storages = @Storage("C3SettingsPlugin.xml"))
 public class C3SettingsState implements PersistentStateComponent<C3SettingsState>
 {
     public String sdk = "c3c";
     public String stdlibPath = "";
+    /** Whether tests ({@code c3c test} / {@code compile-test}) are built with AddressSanitizer. */
+    public boolean testWithAsan = false;
 
     public static C3SettingsState getInstance()
     {
@@ -30,6 +33,17 @@ public class C3SettingsState implements PersistentStateComponent<C3SettingsState
         if (stdlibPath == null || stdlibPath.isBlank()) return "";
         File std = new File(stdlibPath, "lib/std");
         return std.isDirectory() ? std.getPath() : stdlibPath;
+    }
+
+    /**
+     * Adds {@code --sanitize=address} to the arguments of a test build when {@link #testWithAsan}
+     * is enabled and {@code args} does not already pick a sanitizer.
+     */
+    public void addTestSanitizer(@NotNull List<String> args)
+    {
+        if (!testWithAsan) return;
+        for (String arg : args) if (arg.startsWith("--sanitize")) return;
+        args.add("--sanitize=address");
     }
 
     public C3SettingsState getState()
