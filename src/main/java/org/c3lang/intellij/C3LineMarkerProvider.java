@@ -185,20 +185,8 @@ public class C3LineMarkerProvider implements LineMarkerProvider
 
 	private static void runScratch(Project project, VirtualFile file)
 	{
-		RunManager runManager = RunManager.getInstance(project);
-		ConfigurationFactory factory = C3ConfigurationType.getInstance().singleFileFactory();
-
-		RunnerAndConfigurationSettings settings =
-			runManager.createConfiguration(file.getName(), factory);
-		C3CompileRunConfiguration config = (C3CompileRunConfiguration) settings.getConfiguration();
-
-		config.setSourceFile(file.getPath());
-		VirtualFile parent = file.getParent();
-		config.setWorkingDirectory(parent != null ? parent.getPath() : project.getBasePath());
-		config.setArgs("");
-
-		runManager.addConfiguration(settings);
-		runManager.setSelectedConfiguration(settings);
+		RunnerAndConfigurationSettings settings = scratchConfiguration(project, file);
+		RunManager.getInstance(project).setSelectedConfiguration(settings);
 
 		var executor = DefaultRunExecutor.getRunExecutorInstance();
 		try
@@ -209,6 +197,33 @@ public class C3LineMarkerProvider implements LineMarkerProvider
 		{
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * The run configuration ({@code c3c compile-run <file>}) for a scratch file: the existing one
+	 * for this file, so running it again doesn't add another, or a new one.
+	 */
+	static @NotNull RunnerAndConfigurationSettings scratchConfiguration(@NotNull Project project, @NotNull VirtualFile file)
+	{
+		RunManager runManager = RunManager.getInstance(project);
+		for (RunnerAndConfigurationSettings existing : runManager.getAllSettings())
+		{
+			if (existing.getConfiguration() instanceof C3CompileRunConfiguration config
+				&& file.getPath().equals(config.getSourceFile()))
+			{
+				return existing;
+			}
+		}
+
+		ConfigurationFactory factory = C3ConfigurationType.getInstance().singleFileFactory();
+		RunnerAndConfigurationSettings settings = runManager.createConfiguration(file.getName(), factory);
+		C3CompileRunConfiguration config = (C3CompileRunConfiguration) settings.getConfiguration();
+		config.setSourceFile(file.getPath());
+		VirtualFile parent = file.getParent();
+		config.setWorkingDirectory(parent != null ? parent.getPath() : project.getBasePath());
+		config.setArgs("");
+		runManager.addConfiguration(settings);
+		return settings;
 	}
 
 	private static void createAndRunCustomConfig(Project project, @Nullable VirtualFile file)
