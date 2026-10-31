@@ -30,8 +30,10 @@ final class C3TestEventsConverter extends OutputToGeneralTestEventsConverter
 		super(testFrameworkName, consoleProperties);
 	}
 
+	// synchronized: IntelliJ calls this from the stdout and the stderr reader thread, and the
+	// fields below must belong to the same call
 	@Override
-	protected boolean processServiceMessages(@NotNull String text, @NotNull Key<?> outputType,
+	protected synchronized boolean processServiceMessages(@NotNull String text, @NotNull Key<?> outputType,
 	                                         @NotNull ServiceMessageVisitor visitor) throws ParseException
 	{
 		this.visitor = visitor;
@@ -43,7 +45,7 @@ final class C3TestEventsConverter extends OutputToGeneralTestEventsConverter
 	}
 
 	@Override
-	public void flushBufferOnProcessTermination(int exitCode)
+	public synchronized void flushBufferOnProcessTermination(int exitCode)
 	{
 		super.flushBufferOnProcessTermination(exitCode);
 		if (visitor == null) return;

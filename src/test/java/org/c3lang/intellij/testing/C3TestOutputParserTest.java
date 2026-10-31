@@ -4,7 +4,9 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.Assert.assertEquals;
 
@@ -100,6 +102,63 @@ public class C3TestOutputParserTest
 	{
 		List<String> events = parse("Testing m::crash .. ");
 		assertEquals(List.of("start m::crash", "fail m::crash: Test did not finish", "finish m::crash -1"), events);
+	}
+
+	@Test
+	public void uncapturedOutputAppearsOnce()
+	{
+		// --test-nocapture: the test's own output comes before its result
+		List<String> events = parse("Testing m::chatty .. hello\nmore output\n\n[PASS] (1us)\n");
+		assertEquals(List.of(
+			"start m::chatty",
+			"out m::chatty: hello",
+			"out m::chatty: more output",
+			"out m::chatty: ",
+			"finish m::chatty 0"), events);
+	}
+
+	/** IntelliJ reads stdout and stderr on two threads, and both feed the same parser. */
+	@Test
+	public void stdoutAndStderrOnTwoThreads() throws Exception
+	{
+		List<String> problems = Collections.synchronizedList(new ArrayList<>());
+		C3TestOutputParser parser = new C3TestOutputParser(new C3TestOutputParser.Listener()
+		{
+			private void check(String name) { if (name == null) problems.add("null test name"); }
+			@Override public void testStarted(@NotNull String name) { check(name); }
+			@Override public void testOutput(@NotNull String name, @NotNull String text) { check(name); }
+			@Override public void testFailed(@NotNull String name, @NotNull String message, @NotNull String details) { check(name); }
+			@Override public void testFinished(@NotNull String name, long durationMillis) { check(name); }
+			@Override public void unhandled(@NotNull String line) { }
+		});
+		CountDownLatch start = new CountDownLatch(1);
+		Thread stdout = new Thread(() -> {
+			await(start);
+			for (int i = 0; i < 20_000; i++) parser.line("Testing m::t" + i + " .. [PASS] (1us)\n");
+		});
+		Thread stderr = new Thread(() -> {
+			await(start);
+			for (int i = 0; i < 20_000; i++) parser.line("a log line on stderr " + i + "\n");
+		});
+		stdout.start();
+		stderr.start();
+		start.countDown();
+		stdout.join();
+		stderr.join();
+
+		assertEquals(List.of(), problems.stream().distinct().toList());
+	}
+
+	private static void await(CountDownLatch latch)
+	{
+		try
+		{
+			latch.await();
+		}
+		catch (InterruptedException e)
+		{
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Test

@@ -21,6 +21,8 @@ import java.util.regex.Pattern;
  * A leak is reported as {@code [FAIL] (12us) LEAKS DETECTED!} followed by the leak report. A
  * failing test's output runs until the next {@code Testing} line or the {@code N tests run.} summary.
  * Lines outside any test (compiler output, the summary) are reported as unhandled.
+ *
+ * <p>Thread-safe: IntelliJ reads stdout and stderr on separate threads, and both feed the parser.</p>
  */
 public final class C3TestOutputParser
 {
@@ -64,7 +66,7 @@ public final class C3TestOutputParser
 	}
 
 	/** Feeds one line of output (with or without its trailing newline). */
-	public void line(@NotNull String raw)
+	public synchronized void line(@NotNull String raw)
 	{
 		String text = ANSI.matcher(raw).replaceAll("");
 		String line = text.endsWith("\n") ? text.substring(0, text.length() - 1) : text;
@@ -84,7 +86,8 @@ public final class C3TestOutputParser
 		{
 			finishCurrent();
 			start(testing.group(1));
-			result(testing.group(2));
+			// the result, or output printed before it; often nothing, the result follows later
+			if (!testing.group(2).isBlank()) result(testing.group(2));
 			return;
 		}
 
@@ -103,9 +106,9 @@ public final class C3TestOutputParser
 
 		if (!failing)
 		{
-			// Uncaptured output (--test-nocapture) is printed before the result.
-			if (result(line)) return;
-			listener.testOutput(current, line + "\n");
+			// Uncaptured output (--test-nocapture) is printed before the result;
+			// `result` passes it on, blank lines included.
+			result(line);
 			return;
 		}
 
@@ -120,7 +123,7 @@ public final class C3TestOutputParser
 	}
 
 	/** Ends a test cut short by the end of the output (e.g. a crash that killed the runner). */
-	public void finish()
+	public synchronized void finish()
 	{
 		if (current != null && !failing)
 		{
@@ -167,7 +170,7 @@ public final class C3TestOutputParser
 			return true;
 		}
 
-		if (!text.isBlank()) listener.testOutput(name, text + "\n");
+		listener.testOutput(name, text + "\n");
 		return false;
 	}
 
