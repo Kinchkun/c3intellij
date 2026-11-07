@@ -9,6 +9,7 @@ import org.c3lang.intellij.psi.C3PsiElement;
 import org.c3lang.intellij.psi.C3StructMemberDeclaration;
 import org.c3lang.intellij.psi.FullyQualifiedName;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -83,9 +84,7 @@ public final class StructService
             }
             fields = nextFields;
 
-            String structPathType = member != null && member.getStructPathType() != null
-                ? member.getStructPathType().getFullName()
-                : null;
+            String structPathType = memberTypeName(member);
             if (structPathType == null) break;
             query = structPathType;
         }
@@ -120,9 +119,7 @@ public final class StructService
         {
             List<C3StructMemberDeclaration> members = getStructMembers(query + "." + ident, project);
             C3StructMemberDeclaration member = members.size() == 1 ? members.get(0) : null;
-            String next = member != null && member.getStructPathType() != null
-                ? member.getStructPathType().getFullName()
-                : null;
+            String next = memberTypeName(member);
             if (next == null) break;
             query = next;
         }
@@ -143,14 +140,19 @@ public final class StructService
             structMembers = getStructMembers(query + "." + ident, project);
             C3StructMemberDeclaration member = structMembers.size() == 1 ? structMembers.get(0) : null;
 
-            String structPathType = member != null && member.getStructPathType() != null
-                ? member.getStructPathType().getFullName()
-                : null;
+            String structPathType = memberTypeName(member);
             if (structPathType == null) break;
             query = structPathType;
         }
 
         return structMembers;
+    }
+
+    /** The full name of {@code member}'s type, resolved to its declaring module, or null. */
+    private static @Nullable String memberTypeName(@Nullable C3StructMemberDeclaration member)
+    {
+        FullyQualifiedName type = member != null ? member.findTypeName() : null;
+        return type != null ? type.getFullName() : null;
     }
 
     @NotNull

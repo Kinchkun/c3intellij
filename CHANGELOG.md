@@ -3,6 +3,7 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Methods and members reached through a generic-typed member or variable (`List { String } lines;` then `lines.array_view()` or `editor.lines.array_view()`) resolve and complete. The generic arguments were part of the type name and a member's type stayed in its declaring module instead of the imported one, so nothing past such a member resolved.
 - Module-level globals (`Editor editor;`) resolve: Go to Declaration, Find Usages, rename and member completion (`editor.`) work on them, also across files and from imported modules. Before, such a name resolved to nothing and Find Usages reported no usages.
 - Workspaces with several C3 projects (e.g. a monorepo with `c3script/project.json` and `mystd/project.json` but none at the root): the gutter run/test buttons run the C3 project that owns the file (its nearest `project.json`) and name the configuration after it (`c3script: main`); new run configurations default to the C3 project of the open file; dependencies of every C3 project are indexed; New → C3 File is offered and uses that project's name as the module; compiler-output links pick the file whose path matches.
 - The gutter run button on `main` runs the `project.json` target whose `"sources"` contain the file (`c3c run git-check` for `apps/git-check/src/main.c3` in a workspace with several executable targets) instead of the default target; the gutter test button likewise passes the target whose `"test-sources"` contain the file (`c3c test git-check --test-filter …`).

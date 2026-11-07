@@ -162,14 +162,18 @@ public abstract class C3ModuleDefinitionMixinImpl extends C3PsiElementImpl imple
 			return Collections.singletonList(new FullyQualifiedName(null, baseType.getText()));
 		}
 
+		// The type's name without a module path and without the generic arguments of an
+		// instantiation (`List { String }` names the type `List`); the raw text for the forms that
+		// have no name token, such as `$typeof(x)`.
+		String ident = baseType.getNameIdent();
 		C3Path path = baseType.getPath();
 		if (path == null)
 		{
-			return Collections.singletonList(new FullyQualifiedName(getModuleName(), baseType.getText()));
+			return Collections.singletonList(new FullyQualifiedName(getModuleName(), ident != null ? ident : baseType.getText()));
 		}
 
 		String modulePath = stripTrailingScope(path.getText());
-		String name = baseType.getText()
+		String name = ident != null ? ident : baseType.getText()
 			.substring(path.getStartOffsetInParent() + path.getTextLength())
 			.trim();
 

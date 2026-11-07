@@ -137,7 +137,7 @@ public abstract class C3AccessIdentMixinImpl extends C3PsiNamedElementImpl imple
 				String ident = seq.idents.get(i);
 				structMembers = StructService.INSTANCE.getStructMembers(query + "." + ident, myElement.getProject());
 				C3StructMemberDeclaration member = structMembers.size() == 1 ? structMembers.get(0) : null;
-				FullyQualifiedName nextType = member != null ? member.getStructPathType() : null;
+				FullyQualifiedName nextType = member != null ? member.findTypeName() : null;
 				if (nextType == null)
 				{
 					// Not a data field. A method (type-bound function) call such as

@@ -16,9 +16,14 @@ public interface C3StructMemberDeclarationMixin
 	@Nullable String getStructPath();
 	@Nullable FullyQualifiedName getStructPathType();
 
+	/**
+	 * The member's type, resolved to the module that declares it. {@link #getStructPathType()} is
+	 * computed while indexing, so it places an unqualified type (`List { String } lines;`) in the
+	 * member's own module; this looks the type up through that file's imports.
+	 */
 	@Override
 	default @Nullable FullyQualifiedName findTypeName()
 	{
-		return getStructPathType();
+		return getModuleDefinition().resolveDeclaringModule(getStructPathType());
 	}
 }

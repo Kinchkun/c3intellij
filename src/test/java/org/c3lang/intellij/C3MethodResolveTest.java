@@ -45,6 +45,62 @@ public class C3MethodResolveTest extends C3TestCase
 		assertTrue(r.getText().contains("set_opt"));
 	}
 
+	private static final String LIST =
+		"module std::collections::list <Type>;\n"
+			+ "struct List { usz size; Type[] entries; }\n"
+			+ "fn Type[] List.array_view(&self)\n{\n    return self.entries[:self.size];\n}\n";
+
+	private PsiElement resolveAccessAtCaret()
+	{
+		C3AccessIdent access = PsiTreeUtil.getParentOfType(myFixture.getFile().findElementAt(
+			myFixture.getEditor().getCaretModel().getOffset()), C3AccessIdent.class, false);
+		PsiReference ref = access != null ? access.getReference() : null;
+		PsiElement resolved = ref != null ? ref.resolve() : null;
+		System.out.println("[TEST] resolved = " + resolved);
+		return resolved;
+	}
+
+	/** `editor.lines.array_view()`: a method on a generic-typed member of a global, all across modules. */
+	public void testMethodOnGenericTypedMemberOfGlobalResolves()
+	{
+		myFixture.addFileToProject("list.c3", LIST);
+		myFixture.addFileToProject("editor.c3",
+			"module app::editor;\nimport std::collections::list;\nstruct Editor { List { String } lines; int first_line; }\n");
+		myFixture.configureByText("main.c3",
+			"module app;\nimport std::collections::list, app::editor;\nEditor editor;\n"
+				+ "fn void f()\n{\n    String[] content = editor.lines.array_<caret>view();\n}\n");
+		PsiElement resolved = resolveAccessAtCaret();
+		assertNotNull("editor.lines.array_view() should resolve to List.array_view", resolved);
+		assertTrue(resolved.getText(), resolved.getText().contains("List.array_view"));
+	}
+
+	/** `List { String } l; l.array_view()`: a method on a local of a generic type. */
+	public void testMethodOnGenericTypedLocalResolves()
+	{
+		myFixture.addFileToProject("list.c3", LIST);
+		myFixture.configureByText("main.c3",
+			"module app;\nimport std::collections::list;\n"
+				+ "fn void f()\n{\n    List { String } l;\n    String[] content = l.array_<caret>view();\n}\n");
+		PsiElement resolved = resolveAccessAtCaret();
+		assertNotNull("l.array_view() should resolve to List.array_view", resolved);
+		assertTrue(resolved.getText(), resolved.getText().contains("List.array_view"));
+	}
+
+	/** Member completion through a generic-typed member: `editor.lines.` offers List's fields. */
+	public void testMemberCompletionThroughGenericTypedMember()
+	{
+		myFixture.addFileToProject("list.c3", LIST);
+		myFixture.addFileToProject("editor.c3",
+			"module app::editor;\nimport std::collections::list;\nstruct Editor { List { String } lines; }\n");
+		myFixture.configureByText("main.c3",
+			"module app;\nimport std::collections::list, app::editor;\nEditor editor;\n"
+				+ "fn void f()\n{\n    editor.lines.<caret>\n}\n");
+		myFixture.completeBasic();
+		java.util.List<String> lookups = myFixture.getLookupElementStrings();
+		System.out.println("[TEST] lookups = " + lookups);
+		assertTrue("size missing: " + lookups, lookups != null && lookups.contains("size"));
+	}
+
 	public void testMethodCallOnLocalVariableResolves()
 	{
 		myFixture.configureByText("app.c3",

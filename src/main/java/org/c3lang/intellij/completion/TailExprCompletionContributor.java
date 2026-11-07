@@ -66,7 +66,9 @@ public final class TailExprCompletionContributor extends CompletionProvider<Comp
 		FullyQualifiedName rootType = CompletionExtensionsKt.getRootType(lookupTarget);
 		if (rootType == null) return;
 
-		List<String> idents = List.of(lookupString.substring(lookupString.indexOf('.') + 1).split("\\."));
+		// Keep the trailing empty segment of `a.b.` (String.split drops it by default): it is the
+		// member being completed, after the walk through `b`.
+		List<String> idents = List.of(lookupString.substring(lookupString.indexOf('.') + 1).split("\\.", -1));
 		List<Pair<AccessPath, String>> fields =
 			StructService.INSTANCE.getFields(rootType, idents, parameters.getPosition().getProject());
 
