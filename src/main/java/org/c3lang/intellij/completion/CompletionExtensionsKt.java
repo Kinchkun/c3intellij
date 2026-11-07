@@ -13,6 +13,7 @@ import org.c3lang.intellij.psi.C3CallExpr;
 import org.c3lang.intellij.psi.C3CallExprTail;
 import org.c3lang.intellij.psi.C3CompoundInitExpr;
 import org.c3lang.intellij.psi.C3FullyQualifiedTypeNameProvider;
+import org.c3lang.intellij.psi.C3GlobalName;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
 import org.c3lang.intellij.psi.C3Parameter;
@@ -98,15 +99,16 @@ public final class CompletionExtensionsKt
 		}
 
 		// The receiver root may be a function/macro parameter (e.g. `formatter` in
-		// `Formatter* formatter`) rather than a local declaration. Resolve the path-ident's
-		// reference and, when it points at a parameter, use that parameter's type.
+		// `Formatter* formatter`) or a module-level global (`Editor editor;`) rather than a local
+		// declaration. Resolve the path-ident's reference and, when it points at one of those, use
+		// its declared type.
 		if (localDeclAfterType == null && pathIdent != null)
 		{
 			PsiReference reference = pathIdent.getReference();
 			PsiElement resolved = reference != null ? reference.resolve() : null;
-			if (resolved instanceof C3Parameter parameter)
+			if (resolved instanceof C3Parameter || resolved instanceof C3GlobalName)
 			{
-				FullyQualifiedName fqn = parameter.findTypeName();
+				FullyQualifiedName fqn = ((C3FullyQualifiedTypeNameProvider) resolved).findTypeName();
 				if (fqn != null)
 				{
 					C3CallExpr callExpr = PsiTreeUtil.getParentOfType(pathIdent, C3CallExpr.class);

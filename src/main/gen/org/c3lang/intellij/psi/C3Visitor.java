@@ -427,6 +427,10 @@ public class C3Visitor extends PsiElementVisitor {
     visitPsiElement(o);
   }
 
+  public void visitGlobalName(@NotNull C3GlobalName o) {
+    visitGlobalNameMixin(o);
+  }
+
   public void visitGroupedExpr(@NotNull C3GroupedExpr o) {
     visitExpr(o);
   }
@@ -777,6 +781,10 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitFuncNameMixin(@NotNull C3FuncNameMixin o) {
+    visitPsiElement(o);
+  }
+
+  public void visitGlobalNameMixin(@NotNull C3GlobalNameMixin o) {
     visitPsiElement(o);
   }
 

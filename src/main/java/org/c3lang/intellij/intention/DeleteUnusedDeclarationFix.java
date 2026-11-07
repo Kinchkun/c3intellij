@@ -10,6 +10,7 @@ import org.c3lang.intellij.psi.C3ConstDeclarationStmt;
 import org.c3lang.intellij.psi.C3FaultDefinition;
 import org.c3lang.intellij.psi.C3FaultdefDecl;
 import org.c3lang.intellij.psi.C3GlobalDecl;
+import org.c3lang.intellij.psi.C3GlobalName;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
 import org.c3lang.intellij.psi.C3LocalDeclarationStmt;
 import org.c3lang.intellij.psi.C3ParamDecl;
@@ -74,15 +75,16 @@ public final class DeleteUnusedDeclarationFix implements LocalQuickFix
 			return;
 		}
 
-		C3GlobalDecl global = PsiTreeUtil.getParentOfType(element, C3GlobalDecl.class, false);
-		if (global != null && element.getNode().getElementType() == C3Types.IDENT)
+		C3GlobalName globalName = PsiTreeUtil.getParentOfType(element, C3GlobalName.class, false);
+		if (globalName != null)
 		{
-			if (nameCount(global) > 1)
+			C3GlobalDecl global = globalName.getDeclaration();
+			if (global != null && global.getGlobalNameList().size() > 1)
 			{
-				deleteListItem(element);
+				deleteListItem(globalName);
 				return;
 			}
-			deleteStatement(global);
+			deleteStatement(global != null ? global : globalName);
 			return;
 		}
 
@@ -117,16 +119,6 @@ public final class DeleteUnusedDeclarationFix implements LocalQuickFix
 	{
 		PsiElement parent = statement.getParent();
 		(parent instanceof C3TopLevel ? parent : statement).delete();
-	}
-
-	private static int nameCount(@NotNull C3GlobalDecl global)
-	{
-		int count = 0;
-		for (PsiElement child = global.getFirstChild(); child != null; child = child.getNextSibling())
-		{
-			if (child.getNode().getElementType() == C3Types.IDENT) count++;
-		}
-		return count;
 	}
 
 	/** Removes a comma-list entry along with the comma that separates it from its neighbour. */

@@ -7,7 +7,7 @@ import com.intellij.psi.PsiReference;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.psi.C3BinaryExpr;
-import org.c3lang.intellij.psi.C3GlobalDecl;
+import org.c3lang.intellij.psi.C3GlobalName;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
 import org.c3lang.intellij.psi.C3Parameter;
 import org.c3lang.intellij.psi.C3PathIdentExpr;
@@ -31,7 +31,7 @@ public final class C3ReadWriteAccessDetector extends ReadWriteAccessDetector
 	{
 		return element instanceof C3LocalDeclAfterType
 			|| element instanceof C3Parameter
-			|| element instanceof C3GlobalDecl
+			|| element instanceof C3GlobalName
 			|| element instanceof C3StructMemberDeclaration;
 	}
 

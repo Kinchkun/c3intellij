@@ -31,6 +31,7 @@ public class C3StubElementTypeFactory {
 	public static final String CONSTDEF_CONSTANT = "CONSTDEF_CONSTANT";
     public static final String FAULT_DEFINITION = "FAULT_DEFINITION";
 	public static final String ATTRDEF_DECL = "ATTRDEF_DECL";
+	public static final String GLOBAL_NAME = "GLOBAL_NAME";
 
     public static IStubElementType<?, ?> stubFactory(String name) {
         final C3StubElementType<?, ?> type = switch (name) {
@@ -45,6 +46,7 @@ public class C3StubElementTypeFactory {
 			case CONSTDEF_CONSTANT -> C3ConstdefConstantElementType.getInstance();
             case FAULT_DEFINITION -> C3FaultDefinitionElementType.getInstance();
 			case ATTRDEF_DECL -> C3AttrdefDeclElementType.getInstance();
+			case GLOBAL_NAME -> C3GlobalNameElementType.getInstance();
             default -> null;
         };
         if (type == null) {

@@ -113,6 +113,7 @@ public interface C3Types {
   IElementType GENERIC_PARAMETER = new C3ElementType("GENERIC_PARAMETER");
   IElementType GENERIC_PARAMETERS = new C3ElementType("GENERIC_PARAMETERS");
   IElementType GLOBAL_DECL = new C3ElementType("GLOBAL_DECL");
+  IElementType GLOBAL_NAME = C3StubElementTypeFactory.stubFactory("GLOBAL_NAME");
   IElementType GROUPED_EXPR = new C3ElementType("GROUPED_EXPR");
   IElementType IDENTIFIER_LIST = new C3ElementType("IDENTIFIER_LIST");
   IElementType IF_STMT = new C3ElementType("IF_STMT");
@@ -669,6 +670,9 @@ public interface C3Types {
       }
       else if (type == GLOBAL_DECL) {
         return new C3GlobalDeclImpl(node);
+      }
+      else if (type == GLOBAL_NAME) {
+        return new C3GlobalNameImpl(node);
       }
       else if (type == GROUPED_EXPR) {
         return new C3GroupedExprImpl(node);

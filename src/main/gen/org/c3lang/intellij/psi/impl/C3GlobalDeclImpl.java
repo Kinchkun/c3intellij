@@ -46,6 +46,12 @@ public class C3GlobalDeclImpl extends C3PsiElementImpl implements C3GlobalDecl {
 
   @Override
   @NotNull
+  public List<C3GlobalName> getGlobalNameList() {
+    return PsiTreeUtil.getChildrenOfTypeAsList(this, C3GlobalName.class);
+  }
+
+  @Override
+  @NotNull
   public C3OptionalType getOptionalType() {
     return findNotNullChildByClass(C3OptionalType.class);
   }

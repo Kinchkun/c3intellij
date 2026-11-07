@@ -30,6 +30,7 @@ import org.c3lang.intellij.psi.C3FullyQualifiedNamePsiElement;
 import org.c3lang.intellij.psi.C3FuncDef;
 import org.c3lang.intellij.psi.C3FuncDefinition;
 import org.c3lang.intellij.psi.C3GlobalDecl;
+import org.c3lang.intellij.psi.C3GlobalName;
 import org.c3lang.intellij.psi.C3InterfaceDefinition;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
 import org.c3lang.intellij.psi.C3LocalDeclarationStmt;
@@ -196,13 +197,14 @@ public final class C3UnusedDeclarationInspection extends LocalInspectionTool
 			{
 				if (hasEntryPointAttribute(global.getAttributes())) return;
 				// A global declaration may introduce several names: `int a, b, c;`.
-				for (PsiElement child = global.getFirstChild(); child != null; child = child.getNextSibling())
+				for (C3GlobalName globalName : global.getGlobalNameList())
 				{
-					if (child.getNode().getElementType() != C3Types.IDENT) continue;
-					String name = child.getText();
-					if (!hasCodeUsageElsewhere(global, child, name, projectScope(global)))
+					PsiElement nameElement = globalName.getNameIdentElement();
+					String name = globalName.getNameIdent();
+					if (nameElement == null || name == null) continue;
+					if (!hasCodeUsageElsewhere(global, nameElement, name, projectScope(global)))
 					{
-						flag(child, name, "Global");
+						flag(nameElement, name, "Global");
 					}
 				}
 			}

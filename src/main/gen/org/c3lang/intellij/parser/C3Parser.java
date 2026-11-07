@@ -3533,7 +3533,7 @@ public class C3Parser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // KW_TLOCAL? optional_type IDENT ((COMMA IDENT)+ generic_decl? attributes? | generic_decl? attributes? eq_expr_pin?) EOS
+  // KW_TLOCAL? optional_type global_name (COMMA global_name)* generic_decl? attributes? eq_expr_pin? EOS
   public static boolean global_decl(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "global_decl")) return false;
     boolean r, p;
@@ -3541,8 +3541,11 @@ public class C3Parser implements PsiParser, LightPsiParser {
     r = global_decl_0(b, l + 1);
     r = r && optional_type(b, l + 1);
     p = r; // pin = 2
-    r = r && report_error_(b, consumeToken(b, IDENT));
+    r = r && report_error_(b, global_name(b, l + 1));
     r = p && report_error_(b, global_decl_3(b, l + 1)) && r;
+    r = p && report_error_(b, global_decl_4(b, l + 1)) && r;
+    r = p && report_error_(b, global_decl_5(b, l + 1)) && r;
+    r = p && report_error_(b, global_decl_6(b, l + 1)) && r;
     r = p && consumeToken(b, EOS) && r;
     exit_section_(b, l, m, r, p, null);
     return r || p;
@@ -3555,99 +3558,59 @@ public class C3Parser implements PsiParser, LightPsiParser {
     return true;
   }
 
-  // (COMMA IDENT)+ generic_decl? attributes? | generic_decl? attributes? eq_expr_pin?
+  // (COMMA global_name)*
   private static boolean global_decl_3(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "global_decl_3")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = global_decl_3_0(b, l + 1);
-    if (!r) r = global_decl_3_1(b, l + 1);
-    exit_section_(b, m, null, r);
-    return r;
+    while (true) {
+      int c = current_position_(b);
+      if (!global_decl_3_0(b, l + 1)) break;
+      if (!empty_element_parsed_guard_(b, "global_decl_3", c)) break;
+    }
+    return true;
   }
 
-  // (COMMA IDENT)+ generic_decl? attributes?
+  // COMMA global_name
   private static boolean global_decl_3_0(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "global_decl_3_0")) return false;
     boolean r;
     Marker m = enter_section_(b);
-    r = global_decl_3_0_0(b, l + 1);
-    r = r && global_decl_3_0_1(b, l + 1);
-    r = r && global_decl_3_0_2(b, l + 1);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // (COMMA IDENT)+
-  private static boolean global_decl_3_0_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_0_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = global_decl_3_0_0_0(b, l + 1);
-    while (r) {
-      int c = current_position_(b);
-      if (!global_decl_3_0_0_0(b, l + 1)) break;
-      if (!empty_element_parsed_guard_(b, "global_decl_3_0_0", c)) break;
-    }
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // COMMA IDENT
-  private static boolean global_decl_3_0_0_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_0_0_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = consumeTokens(b, 0, COMMA, IDENT);
+    r = consumeToken(b, COMMA);
+    r = r && global_name(b, l + 1);
     exit_section_(b, m, null, r);
     return r;
   }
 
   // generic_decl?
-  private static boolean global_decl_3_0_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_0_1")) return false;
+  private static boolean global_decl_4(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "global_decl_4")) return false;
     generic_decl(b, l + 1);
     return true;
   }
 
   // attributes?
-  private static boolean global_decl_3_0_2(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_0_2")) return false;
-    attributes(b, l + 1);
-    return true;
-  }
-
-  // generic_decl? attributes? eq_expr_pin?
-  private static boolean global_decl_3_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_1")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = global_decl_3_1_0(b, l + 1);
-    r = r && global_decl_3_1_1(b, l + 1);
-    r = r && global_decl_3_1_2(b, l + 1);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // generic_decl?
-  private static boolean global_decl_3_1_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_1_0")) return false;
-    generic_decl(b, l + 1);
-    return true;
-  }
-
-  // attributes?
-  private static boolean global_decl_3_1_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_1_1")) return false;
+  private static boolean global_decl_5(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "global_decl_5")) return false;
     attributes(b, l + 1);
     return true;
   }
 
   // eq_expr_pin?
-  private static boolean global_decl_3_1_2(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "global_decl_3_1_2")) return false;
+  private static boolean global_decl_6(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "global_decl_6")) return false;
     eq_expr_pin(b, l + 1);
     return true;
+  }
+
+  /* ********************************************************** */
+  // IDENT
+  public static boolean global_name(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "global_name")) return false;
+    if (!nextTokenIs(b, IDENT)) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = consumeToken(b, IDENT);
+    exit_section_(b, m, GLOBAL_NAME, r);
+    return r;
   }
 
   /* ********************************************************** */

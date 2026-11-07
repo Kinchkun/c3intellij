@@ -31,10 +31,11 @@ import java.util.List;
  *   <li>{@link C3ParameterReference} – a parameter of the enclosing function/macro.</li>
  *   <li>{@link C3FuncNameReference} – a function/macro call; looked up cross-file via the name index.</li>
  *   <li>{@link C3StructMemberReference} – a struct field/member access.</li>
+ *   <li>{@link C3GlobalNameReference} – a module-level global ({@code Editor editor;}).</li>
  * </ul>
- * The first three are local (cheap tree walks); only {@code C3FuncNameReference} reaches into the
- * project-wide index ({@link NameIndexService}) and filters by module visibility – this is the step
- * that resolves names declared in other files.
+ * The first three are local (cheap tree walks); {@code C3FuncNameReference} and
+ * {@code C3GlobalNameReference} reach into the project-wide index ({@link NameIndexService}) and
+ * filter by module visibility – this is the step that resolves names declared in other files.
  */
 public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl implements C3PathIdent
 {
@@ -96,6 +97,13 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		if (params.size() == 1 && params.iterator().next() instanceof C3Parameter parameter)
 		{
 			return parameter.findTypeName();
+		}
+
+		// Or a module-level global (`Editor editor;` → Editor).
+		Collection<C3PsiElement> globals = new C3GlobalNameReference(this).multiResolve();
+		if (globals.size() == 1 && globals.iterator().next() instanceof C3GlobalName global)
+		{
+			return global.findTypeName();
 		}
 		return null;
 	}
@@ -187,9 +195,22 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	{
 		if (hasLocalDeclBeforeUse()) return new C3LocalDeclAfterTypeReference(this);
 		if (hasParameterBeforeUse()) return new C3ParameterReference(this);
-		if (isCallablePosition()) return new C3FuncNameReference(this);
+		if (isCallablePosition()) return callableReference();
 		if (isStructMemberAccess()) return new C3StructMemberReference(this);
-		return new C3LocalDeclAfterTypeReference(this); // default: try a local declaration
+		return new C3GlobalNameReference(this); // default: a module-level global
+	}
+
+	/**
+	 * In a callable position (`foo()`, but also the receiver of `foo.bar` and `&foo`, which the
+	 * grammar parses as call tails) a function or macro is tried first and a global second, so a
+	 * global holding a function pointer, or a struct global whose member is accessed, resolves too.
+	 */
+	private @NotNull PsiReference callableReference()
+	{
+		C3FuncNameReference callable = new C3FuncNameReference(this);
+		if (!callable.multiResolve().isEmpty()) return callable;
+		C3GlobalNameReference global = new C3GlobalNameReference(this);
+		return global.multiResolve().isEmpty() ? callable : global;
 	}
 
 	/** Resolves to the nearest preceding local declaration of the same name in the enclosing block. */
@@ -276,6 +297,43 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 				if (el instanceof C3CallablePsiElement
 					&& el.getFqName().getName().equals(myElement.getNameIdent())
 					&& moduleDefinition.containsImportOrSameModule(el)) // visibility filter
+				{
+					result.add(el);
+				}
+			}
+			return result;
+		}
+
+		@Override
+		public @NotNull TextRange getRangeInElement()
+		{
+			C3Path path = myElement.getPath();
+			return TextRange.create(path != null ? path.getTextLength() : 0, myElement.getTextLength());
+		}
+	}
+
+	/**
+	 * Resolves a module-level global ({@code Editor editor;}), declared in any file: the name index
+	 * lists every declared global name, filtered here by module visibility like a function call.
+	 */
+	private static class C3GlobalNameReference extends C3ReferenceBase<C3PathIdent>
+	{
+		C3GlobalNameReference(@NotNull C3PathIdent element)
+		{
+			super(element);
+		}
+
+		@Override
+		public @NotNull Collection<C3PsiElement> multiResolve()
+		{
+			C3ModuleDefinition moduleDefinition = myElement.getModuleDefinition();
+			List<C3PsiElement> result = new ArrayList<>();
+			for (C3FullyQualifiedNamePsiElement el :
+				NameIndexService.INSTANCE.findByNameEndsWith(myElement.getText(), myElement.getProject()))
+			{
+				if (el instanceof C3GlobalName
+					&& el.getFqName().getName().equals(myElement.getNameIdent())
+					&& moduleDefinition.containsImportOrSameModule(el))
 				{
 					result.add(el);
 				}
