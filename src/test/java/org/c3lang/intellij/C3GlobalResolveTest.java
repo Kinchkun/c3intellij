@@ -84,6 +84,14 @@ public class C3GlobalResolveTest extends C3TestCase
 		assertGlobal(resolveAtCaret(), "counter");
 	}
 
+	/** `use(editor)`: a global passed as a call argument (an argument is also a path-name provider). */
+	public void testGlobalAsCallArgumentResolves()
+	{
+		myFixture.configureByText("app.c3",
+			"module app;\n" + EDITOR + "Editor editor;\nfn void use(Editor e) {}\nfn void f()\n{\n    use(edi<caret>tor);\n}\n");
+		assertGlobal(resolveAtCaret(), "editor");
+	}
+
 	public void testEachNameOfAMultiDeclarationResolves()
 	{
 		myFixture.configureByText("app.c3", "module app;\nint a, b;\nfn void f()\n{\n    int v = <caret>b;\n}\n");

@@ -9,11 +9,22 @@ import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.c3lang.intellij.psi.C3Types.*;
 import org.c3lang.intellij.psi.*;
+import org.c3lang.intellij.stubs.C3AliasNameStub;
+import com.intellij.psi.stubs.IStubElementType;
+import com.intellij.psi.tree.IElementType;
 
-public class C3AliasNameImpl extends C3PsiElementImpl implements C3AliasName {
+public class C3AliasNameImpl extends C3AliasNameMixinImpl implements C3AliasName {
 
   public C3AliasNameImpl(@NotNull ASTNode node) {
     super(node);
+  }
+
+  public C3AliasNameImpl(@NotNull C3AliasNameStub stub, @NotNull IStubElementType<?, ?> type) {
+    super(stub, type);
+  }
+
+  public C3AliasNameImpl(@NotNull C3AliasNameStub stub, @Nullable IElementType type, @Nullable ASTNode node) {
+    super(stub, type, node);
   }
 
   public void accept(@NotNull C3Visitor visitor) {

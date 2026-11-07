@@ -93,7 +93,8 @@ public abstract class C3PathConstMixinImpl extends C3PsiNamedElementImpl impleme
 			for (C3FullyQualifiedNamePsiElement el :
 				NameIndexService.INSTANCE.findByNameEndsWith(myElement.getText(), myElement.getProject()))
 			{
-				if (el instanceof C3ConstDeclarationStmt
+				if ((el instanceof C3ConstDeclarationStmt || el instanceof C3AliasName)
+					&& el.getFqName().getName().equals(myElement.getNameIdent())
 					&& moduleDefinition.containsImportOrSameModule(el))
 				{
 					result.add(el);

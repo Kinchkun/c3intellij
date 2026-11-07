@@ -19,7 +19,7 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitAliasName(@NotNull C3AliasName o) {
-    visitPsiElement(o);
+    visitAliasNameMixin(o);
   }
 
   public void visitAliasTernary(@NotNull C3AliasTernary o) {
@@ -745,6 +745,10 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitAccessIdentMixin(@NotNull C3AccessIdentMixin o) {
+    visitPsiElement(o);
+  }
+
+  public void visitAliasNameMixin(@NotNull C3AliasNameMixin o) {
     visitPsiElement(o);
   }
 

@@ -31,7 +31,8 @@ import java.util.List;
  *   <li>{@link C3ParameterReference} – a parameter of the enclosing function/macro.</li>
  *   <li>{@link C3FuncNameReference} – a function/macro call; looked up cross-file via the name index.</li>
  *   <li>{@link C3StructMemberReference} – a struct field/member access.</li>
- *   <li>{@link C3GlobalNameReference} – a module-level global ({@code Editor editor;}).</li>
+ *   <li>{@link C3GlobalNameReference} – a module-level global ({@code Editor editor;}) or an alias
+ *   ({@code alias mem = thread_allocator;}).</li>
  * </ul>
  * The first three are local (cheap tree walks); {@code C3FuncNameReference} and
  * {@code C3GlobalNameReference} reach into the project-wide index ({@link NameIndexService}) and
@@ -99,9 +100,9 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 			return parameter.findTypeName();
 		}
 
-		// Or a module-level global (`Editor editor;` → Editor).
+		// Or a module-level global (`Editor editor;` → Editor) or an alias of one.
 		Collection<C3PsiElement> globals = new C3GlobalNameReference(this).multiResolve();
-		if (globals.size() == 1 && globals.iterator().next() instanceof C3GlobalName global)
+		if (globals.size() == 1 && globals.iterator().next() instanceof C3FullyQualifiedTypeNameProvider global)
 		{
 			return global.findTypeName();
 		}
@@ -196,8 +197,14 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		if (hasLocalDeclBeforeUse()) return new C3LocalDeclAfterTypeReference(this);
 		if (hasParameterBeforeUse()) return new C3ParameterReference(this);
 		if (isCallablePosition()) return callableReference();
-		if (isStructMemberAccess()) return new C3StructMemberReference(this);
-		return new C3GlobalNameReference(this); // default: a module-level global
+		if (isStructMemberAccess())
+		{
+			// A call argument is a path-name provider too (for designated initializers), so a plain
+			// `use(mem)` looks like a member access: keep the member strategy only when it resolves.
+			C3StructMemberReference member = new C3StructMemberReference(this);
+			if (!member.multiResolve().isEmpty()) return member;
+		}
+		return new C3GlobalNameReference(this); // default: a module-level global or an alias
 	}
 
 	/**
@@ -313,8 +320,9 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	}
 
 	/**
-	 * Resolves a module-level global ({@code Editor editor;}), declared in any file: the name index
-	 * lists every declared global name, filtered here by module visibility like a function call.
+	 * Resolves a module-level global ({@code Editor editor;}) or an alias ({@code alias mem = ...;}),
+	 * declared in any file: the name index lists every declared global and alias name, filtered
+	 * here by module visibility like a function call.
 	 */
 	private static class C3GlobalNameReference extends C3ReferenceBase<C3PathIdent>
 	{
@@ -331,7 +339,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 			for (C3FullyQualifiedNamePsiElement el :
 				NameIndexService.INSTANCE.findByNameEndsWith(myElement.getText(), myElement.getProject()))
 			{
-				if (el instanceof C3GlobalName
+				if ((el instanceof C3GlobalName || el instanceof C3AliasName)
 					&& el.getFqName().getName().equals(myElement.getNameIdent())
 					&& moduleDefinition.containsImportOrSameModule(el))
 				{

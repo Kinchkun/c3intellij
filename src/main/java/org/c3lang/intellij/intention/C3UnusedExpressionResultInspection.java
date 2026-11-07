@@ -32,7 +32,8 @@ import java.util.Set;
 /**
  * Warns when a statement evaluates an expression but discards its result — e.g. {@code compute();}
  * where {@code compute} returns a value that is never stored, returned or otherwise used. The
- * <i>Create local variable</i> quick fix captures the value in a new declaration.
+ * <i>Create local variable</i> quick fix captures the value in a new declaration; <i>Discard
+ * result with (void)</i> marks the discard as intentional.
  *
  * <p>Statements that exist for their side effect are not reported: assignments, increments
  * ({@code x++}), optional-unwraps ({@code mayFail()!}) and explicit {@code (void)} discards. Calls
@@ -77,7 +78,8 @@ public final class C3UnusedExpressionResultInspection extends LocalInspectionToo
 					expr,
 					"Result of this expression is not used",
 					ProblemHighlightType.WARNING,
-					new CreateLocalVariableFix(discarded.typeText));
+					new CreateLocalVariableFix(discarded.typeText),
+					new DiscardResultFix());
 			}
 		};
 	}

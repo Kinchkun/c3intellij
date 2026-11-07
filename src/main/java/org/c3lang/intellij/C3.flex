@@ -67,7 +67,7 @@ OCTAL_LIT           = "0" [oO] {OINT}
 BINARY_LIT          = "0" [bB] {BINT}
 DECIMAL_LIT         = {INT}
 
-REAL                = ({DEC_FLOAT_LIT} | {HEX_FLOAT_LIT}) {REALTYPE}?
+REAL                = ({DEC_FLOAT_LIT} | {HEX_FLOAT_LIT}) {REALTYPE}? | {INT} {REALTYPE}
 DEC_FLOAT_LIT       = {INT}{E} | {INT} "." {INT} {E}?
 HEX_FLOAT_LIT       = "0"[xX]{HINT}("."{HINT})?{P}
 

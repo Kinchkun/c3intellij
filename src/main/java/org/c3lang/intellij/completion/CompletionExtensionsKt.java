@@ -13,6 +13,7 @@ import org.c3lang.intellij.psi.C3CallExpr;
 import org.c3lang.intellij.psi.C3CallExprTail;
 import org.c3lang.intellij.psi.C3CompoundInitExpr;
 import org.c3lang.intellij.psi.C3FullyQualifiedTypeNameProvider;
+import org.c3lang.intellij.psi.C3AliasName;
 import org.c3lang.intellij.psi.C3GlobalName;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
@@ -106,7 +107,7 @@ public final class CompletionExtensionsKt
 		{
 			PsiReference reference = pathIdent.getReference();
 			PsiElement resolved = reference != null ? reference.resolve() : null;
-			if (resolved instanceof C3Parameter || resolved instanceof C3GlobalName)
+			if (resolved instanceof C3Parameter || resolved instanceof C3GlobalName || resolved instanceof C3AliasName)
 			{
 				FullyQualifiedName fqn = ((C3FullyQualifiedTypeNameProvider) resolved).findTypeName();
 				if (fqn != null)

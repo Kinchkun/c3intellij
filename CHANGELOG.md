@@ -3,6 +3,9 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Aliases (`alias mem @builtin = thread_allocator;`, `alias MAX = LIMIT;`) resolve: Go to Declaration, Find Usages, rename and member access through them work, also from the auto-imported `std::core` modules.
+- A float suffix on an integer literal (`255f`, `1d`) lexes as a float literal. Such a literal broke the parse of the rest of the file, so types declared after it (`frontend::Window`) did not resolve.
+- The "Result of this expression is not used" warning offers a second quick fix, "Discard result with (void)", next to "Create local variable".
 - Methods and members reached through a generic-typed member or variable (`List { String } lines;` then `lines.array_view()` or `editor.lines.array_view()`) resolve and complete. The generic arguments were part of the type name and a member's type stayed in its declaring module instead of the imported one, so nothing past such a member resolved.
 - Module-level globals (`Editor editor;`) resolve: Go to Declaration, Find Usages, rename and member completion (`editor.`) work on them, also across files and from imported modules. Before, such a name resolved to nothing and Find Usages reported no usages.
 - Workspaces with several C3 projects (e.g. a monorepo with `c3script/project.json` and `mystd/project.json` but none at the root): the gutter run/test buttons run the C3 project that owns the file (its nearest `project.json`) and name the configuration after it (`c3script: main`); new run configurations default to the C3 project of the open file; dependencies of every C3 project are indexed; New → C3 File is offered and uses that project's name as the module; compiler-output links pick the file whose path matches.

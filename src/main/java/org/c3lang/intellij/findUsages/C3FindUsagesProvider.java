@@ -64,6 +64,7 @@ public class C3FindUsagesProvider implements FindUsagesProvider
 			case C3EnumConstant ignored: return "enum constant";
 			case C3LocalDeclAfterType ignored: return "local variable";
 			case C3GlobalName ignored: return "global variable";
+			case C3AliasName ignored: return "alias";
 			case C3TypeName ignored: return "type";
 			case C3FaultDefinition ignored: return "fault";
 			case C3PathIdent ignored: return "identifier";

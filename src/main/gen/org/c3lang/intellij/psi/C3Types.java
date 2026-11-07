@@ -11,7 +11,7 @@ public interface C3Types {
   IElementType ACCESS_IDENT = new C3ElementType("ACCESS_IDENT");
   IElementType ALIAS_DECL = new C3ElementType("ALIAS_DECL");
   IElementType ALIAS_DECLARATION_SOURCE = new C3ElementType("ALIAS_DECLARATION_SOURCE");
-  IElementType ALIAS_NAME = new C3ElementType("ALIAS_NAME");
+  IElementType ALIAS_NAME = C3StubElementTypeFactory.stubFactory("ALIAS_NAME");
   IElementType ALIAS_TERNARY = new C3ElementType("ALIAS_TERNARY");
   IElementType ALIAS_TYPE_DECL = new C3ElementType("ALIAS_TYPE_DECL");
   IElementType ARG = new C3ElementType("ARG");

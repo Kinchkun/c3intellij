@@ -95,4 +95,11 @@ public class C3Syntax085Test extends C3TestCase
 	{
 		assertParses("macro m(...) { var x = $vaarg[^1]; }");
 	}
+	/** A float suffix on an integer literal (`255f`, `1d`) makes it a float literal, as in c3c. */
+	public void testFloatSuffixOnIntegerLiteral()
+	{
+		assertParses("struct Color { char r, g, b, a; }\n"
+			+ "fn float[4] Color.to_float(self) => { self.r / 255f, self.g / 255f, self.b / 255f, self.a / 255f };\n"
+			+ "fn double half() => 1d / 2d;\n");
+	}
 }
