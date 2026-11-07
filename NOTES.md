@@ -74,6 +74,13 @@ classpath so the `psiImplUtilClass` method signatures come out right), then it c
 files that changed (never `C3StringExprImpl`: patch 2) and re-applies patch 1. Check the diff of
 `src/main/gen` afterwards: it should only touch what the grammar change touched.
 
+## Stub-backed declarations
+
+Whenever the stub layout changes (a rule is added to or removed from the `elementTypeFactory`
+list in `C3.bnf`, or a `*Stub` gains or loses a field), bump `STUB_VERSION` in
+`C3FileElementType`. Otherwise an updated plugin reuses the stubs the old version indexed and
+fails with "PSI and index do not match ... Stub count (n) doesn't match stubbed node length (m)".
+
 ## Keeping up with C3
 
 `C3StdlibParseTest` parses every file of the C3 standard library (`$C3_STDLIB`, else mise's
