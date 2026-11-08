@@ -49,6 +49,15 @@
     mixin("enum_access_expr") = "org.c3lang.intellij.psi.impl.C3EnumAccessExprMixinImpl"
     implements("enum_access_expr") = "org.c3lang.intellij.psi.C3EnumAccessExprMixin"
 
+    mixin("foreach_var") = "org.c3lang.intellij.psi.impl.C3ForeachVarMixinImpl"
+    implements("foreach_var") = "org.c3lang.intellij.psi.C3ForeachVarMixin"
+    mixin("catch_unwrap") = "org.c3lang.intellij.psi.impl.C3CatchUnwrapMixinImpl"
+    implements("catch_unwrap") = "org.c3lang.intellij.psi.C3CatchUnwrapMixin"
+    mixin("try_unwrap") = "org.c3lang.intellij.psi.impl.C3TryUnwrapMixinImpl"
+    implements("try_unwrap") = "org.c3lang.intellij.psi.C3TryUnwrapMixin"
+    mixin("var_decl") = "org.c3lang.intellij.psi.impl.C3VarDeclMixinImpl"
+    implements("var_decl") = "org.c3lang.intellij.psi.C3VarDeclMixin"
+
     mixin("path_const") = "org.c3lang.intellij.psi.impl.C3PathConstMixinImpl"
     implements("path_const") = "org.c3lang.intellij.psi.C3PathConstMixin"
 

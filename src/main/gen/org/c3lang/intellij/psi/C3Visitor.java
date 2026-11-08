@@ -176,7 +176,7 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitCatchUnwrap(@NotNull C3CatchUnwrap o) {
-    visitPsiElement(o);
+    visitCatchUnwrapMixin(o);
   }
 
   public void visitCatchUnwrapList(@NotNull C3CatchUnwrapList o) {
@@ -389,7 +389,7 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitForeachVar(@NotNull C3ForeachVar o) {
-    visitPsiElement(o);
+    visitForeachVarMixin(o);
   }
 
   public void visitForeachVars(@NotNull C3ForeachVars o) {
@@ -686,7 +686,7 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitTryUnwrap(@NotNull C3TryUnwrap o) {
-    visitPsiElement(o);
+    visitTryUnwrapMixin(o);
   }
 
   public void visitTryUnwrapChain(@NotNull C3TryUnwrapChain o) {
@@ -734,7 +734,7 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitVarDecl(@NotNull C3VarDecl o) {
-    visitPsiElement(o);
+    visitVarDeclMixin(o);
   }
 
   public void visitVarStmt(@NotNull C3VarStmt o) {
@@ -765,6 +765,10 @@ public class C3Visitor extends PsiElementVisitor {
     visitPsiElement(o);
   }
 
+  public void visitCatchUnwrapMixin(@NotNull C3CatchUnwrapMixin o) {
+    visitPsiElement(o);
+  }
+
   public void visitConstDeclarationStmtMixin(@NotNull C3ConstDeclarationStmtMixin o) {
     visitPsiElement(o);
   }
@@ -778,6 +782,10 @@ public class C3Visitor extends PsiElementVisitor {
   }
 
   public void visitFaultDefinitionMixin(@NotNull C3FaultDefinitionMixin o) {
+    visitPsiElement(o);
+  }
+
+  public void visitForeachVarMixin(@NotNull C3ForeachVarMixin o) {
     visitPsiElement(o);
   }
 
@@ -849,7 +857,15 @@ public class C3Visitor extends PsiElementVisitor {
     visitPsiElement(o);
   }
 
+  public void visitTryUnwrapMixin(@NotNull C3TryUnwrapMixin o) {
+    visitPsiElement(o);
+  }
+
   public void visitTypeNameMixin(@NotNull C3TypeNameMixin o) {
+    visitPsiElement(o);
+  }
+
+  public void visitVarDeclMixin(@NotNull C3VarDeclMixin o) {
     visitPsiElement(o);
   }
 

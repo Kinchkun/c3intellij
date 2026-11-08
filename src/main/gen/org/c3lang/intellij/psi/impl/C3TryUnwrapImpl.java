@@ -10,9 +10,9 @@ import com.intellij.psi.util.PsiTreeUtil;
 import static org.c3lang.intellij.psi.C3Types.*;
 import org.c3lang.intellij.psi.*;
 
-public class C3TryUnwrapImpl extends C3PsiElementImpl implements C3TryUnwrap {
+public class C3TryUnwrapImpl extends C3TryUnwrapMixinImpl implements C3TryUnwrap {
 
-  public C3TryUnwrapImpl(@NotNull ASTNode node) {
+  public C3TryUnwrapImpl(ASTNode node) {
     super(node);
   }
 

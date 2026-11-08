@@ -61,6 +61,7 @@
                                   implementationClass="org.c3lang.intellij.structure.C3StructureViewFactory"/>
     <gotoSymbolContributor implementation="org.c3lang.intellij.C3SymbolContributor"/>
     <gotoDeclarationHandler implementation="org.c3lang.intellij.navigation.C3AtMacroGotoDeclarationHandler"/>
+    <gotoDeclarationHandler implementation="org.c3lang.intellij.navigation.C3AmbiguousReferenceGotoDeclarationHandler"/>
     <!-- Usage-site elements are named (for rename) but are not the declaration under the caret. -->
     <targetElementEvaluator language="C3" implementationClass="org.c3lang.intellij.navigation.C3TargetElementEvaluator"/>
     <!-- Quick Definition shows a whole function, not only the header a call resolves to. -->

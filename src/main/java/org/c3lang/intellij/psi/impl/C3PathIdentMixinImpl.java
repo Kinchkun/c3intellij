@@ -10,6 +10,7 @@ import org.c3lang.intellij.completion.CompletionExtensionsKt;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.index.StructService;
 import org.c3lang.intellij.psi.*;
+import org.c3lang.intellij.psi.reference.C3Candidates;
 import org.c3lang.intellij.psi.reference.C3ReferenceBase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -89,8 +90,9 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	@Override
 	public @Nullable FullyQualifiedName findTypeName()
 	{
-		List<C3LocalDeclAfterType> decls = findLocalDeclAfterType();
-		if (decls.size() == 1) return decls.getFirst().findTypeName();
+		// A local declaration of any kind shadows parameters and globals; its type is the written one.
+		C3NameIdentProvider local = findVisibleLocalDeclaration(this);
+		if (local != null) return local instanceof C3FullyQualifiedTypeNameProvider typed ? typed.findTypeName() : null;
 
 		// The receiver may be a function/macro parameter rather than a local declaration
 		// (e.g. `Formatter formatter` → Formatter), so member completion works on parameters too.
@@ -112,8 +114,14 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	@Override
 	public @NotNull List<C3LocalDeclAfterType> findLocalDeclAfterType()
 	{
-		C3LocalDeclAfterType best = findVisibleLocalDeclaration(this);
-		return best != null ? Collections.singletonList(best) : Collections.emptyList();
+		C3NameIdentProvider best = findVisibleLocalDeclaration(this);
+		return best instanceof C3LocalDeclAfterType decl ? Collections.singletonList(decl) : Collections.emptyList();
+	}
+
+	private static boolean isLocalDeclaration(@NotNull PsiElement element)
+	{
+		return element instanceof C3LocalDeclAfterType || element instanceof C3ForeachVar
+			|| element instanceof C3CatchUnwrap || element instanceof C3TryUnwrap || element instanceof C3VarDecl;
 	}
 
 	/**
@@ -122,7 +130,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	 * before a loop is visible inside the loop's nested blocks), a loop or {@code if} header
 	 * declaration inside that statement; never one of a sibling block, and the innermost wins.
 	 */
-	private static @Nullable C3LocalDeclAfterType findVisibleLocalDeclaration(@NotNull C3PathIdent usage)
+	private static @Nullable C3NameIdentProvider findVisibleLocalDeclaration(@NotNull C3PathIdent usage)
 	{
 		String name = usage.getNameIdent();
 		if (name == null) return null;
@@ -134,9 +142,10 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		}
 		if (outermost == null) return null;
 
-		C3LocalDeclAfterType best = null;
-		for (C3LocalDeclAfterType decl : PsiTreeUtil.collectElementsOfType(outermost, C3LocalDeclAfterType.class))
+		C3NameIdentProvider best = null;
+		for (PsiElement element : PsiTreeUtil.collectElements(outermost, C3PathIdentMixinImpl::isLocalDeclaration))
 		{
+			C3NameIdentProvider decl = (C3NameIdentProvider) element;
 			if (decl.getTextOffset() >= usage.getTextOffset() || !name.equals(decl.getNameIdent())) continue;
 			if (!PsiTreeUtil.isAncestor(scopeOf(decl), usage, false)) continue;
 			if (best == null || decl.getTextOffset() > best.getTextOffset()) best = decl;
@@ -145,11 +154,14 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	}
 
 	/**
-	 * The element a local declaration is visible in: the statement owning its header for
-	 * {@code for (int i = 0; ...)} and {@code if (int x = f())}, otherwise its block.
+	 * The element a local declaration is visible in: the loop for a foreach variable, the
+	 * statement owning its header for {@code for (int i = 0; ...)}, {@code if (int x = f())} and
+	 * {@code if (catch err = x)}, otherwise its block.
 	 */
-	private static @Nullable PsiElement scopeOf(@NotNull C3LocalDeclAfterType decl)
+	private static @Nullable PsiElement scopeOf(@NotNull C3NameIdentProvider decl)
 	{
+		if (decl instanceof C3ForeachVar) return PsiTreeUtil.getParentOfType(decl, C3ForeachStmt.class);
+		if (decl instanceof C3CatchUnwrap || decl instanceof C3TryUnwrap) return PsiTreeUtil.getParentOfType(decl, C3Statement.class);
 		C3DeclOrExpr header = PsiTreeUtil.getParentOfType(decl, C3DeclOrExpr.class);
 		if (header != null)
 		{
@@ -258,7 +270,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		@Override
 		public @NotNull Collection<C3PsiElement> multiResolve()
 		{
-			C3LocalDeclAfterType best = findVisibleLocalDeclaration(myElement);
+			C3NameIdentProvider best = findVisibleLocalDeclaration(myElement);
 			return best != null ? Collections.singletonList(best) : Collections.emptyList();
 		}
 	}
@@ -307,7 +319,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		public @NotNull Collection<C3PsiElement> multiResolve()
 		{
 			C3ModuleDefinition moduleDefinition = myElement.getModuleDefinition();
-			List<C3PsiElement> result = new ArrayList<>();
+			List<C3FullyQualifiedNamePsiElement> result = new ArrayList<>();
 			// Ask the index for all declarations whose FQN ends with the typed name (cheap, no parsing).
 			for (C3FullyQualifiedNamePsiElement el :
 				NameIndexService.INSTANCE.findByNameEndsWith(myElement.getText(), myElement.getProject()))
@@ -319,7 +331,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 					result.add(el);
 				}
 			}
-			return result;
+			return C3Candidates.closest(result, moduleDefinition);
 		}
 
 		@Override
@@ -346,7 +358,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		public @NotNull Collection<C3PsiElement> multiResolve()
 		{
 			C3ModuleDefinition moduleDefinition = myElement.getModuleDefinition();
-			List<C3PsiElement> result = new ArrayList<>();
+			List<C3FullyQualifiedNamePsiElement> result = new ArrayList<>();
 			for (C3FullyQualifiedNamePsiElement el :
 				NameIndexService.INSTANCE.findByNameEndsWith(myElement.getText(), myElement.getProject()))
 			{
@@ -357,7 +369,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 					result.add(el);
 				}
 			}
-			return result;
+			return C3Candidates.closest(result, moduleDefinition);
 		}
 
 		@Override

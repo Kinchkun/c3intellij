@@ -5,7 +5,7 @@ import java.util.List;
 import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElement;
 
-public interface C3VarDecl extends C3PsiElement {
+public interface C3VarDecl extends C3VarDeclMixin {
 
   @Nullable
   C3Attributes getAttributes();

@@ -10,9 +10,9 @@ import com.intellij.psi.util.PsiTreeUtil;
 import static org.c3lang.intellij.psi.C3Types.*;
 import org.c3lang.intellij.psi.*;
 
-public class C3ForeachVarImpl extends C3PsiElementImpl implements C3ForeachVar {
+public class C3ForeachVarImpl extends C3ForeachVarMixinImpl implements C3ForeachVar {
 
-  public C3ForeachVarImpl(@NotNull ASTNode node) {
+  public C3ForeachVarImpl(ASTNode node) {
     super(node);
   }
 

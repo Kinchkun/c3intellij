@@ -7,6 +7,7 @@ import com.intellij.psi.PsiReference;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.psi.*;
+import org.c3lang.intellij.psi.reference.C3Candidates;
 import org.c3lang.intellij.psi.reference.C3ReferenceBase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -85,7 +86,7 @@ public abstract class C3BaseTypeMixinImpl extends C3PsiNamedElementImpl implemen
 		public @NotNull Collection<C3PsiElement> multiResolve()
 		{
 			C3ModuleDefinition importProvider = myElement.getModuleDefinition();
-			List<C3PsiElement> result = new ArrayList<>();
+			List<C3FullyQualifiedNamePsiElement> result = new ArrayList<>();
 			for (C3FullyQualifiedNamePsiElement el :
 				NameIndexService.INSTANCE.findType(myElement, myElement.getProject()))
 			{
@@ -95,7 +96,7 @@ public abstract class C3BaseTypeMixinImpl extends C3PsiNamedElementImpl implemen
 					result.add(el);
 				}
 			}
-			return result;
+			return C3Candidates.closest(result, importProvider);
 		}
 
 		@Override

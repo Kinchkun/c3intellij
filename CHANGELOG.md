@@ -3,6 +3,11 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- A name declared in several visible modules resolves to the closest declaration: the usage's own module, then explicitly imported modules, then the auto-imported `std::core`. Such a name had no navigation target at all before (`Color` in `ted::frontend` next to `sdl::Color`, `write_trace`, `min`). Names that stay ambiguous offer a chooser.
+- Loop variables of `foreach`, the variables of `if (catch err = ...)` and `if (try v = ...)`, and `var x = ...` declarations resolve, with Find Usages and rename; a written type on them types member access.
+- Qualified constants (`frontend::WHITE`, `log::CATEGORY_APPLICATION`) resolve again; a check added in 3.2.0 compared the wrong name. An enum or constdef constant written bare (`if (parsed == EXIT)`) resolves to the constant.
+- `=> @pool() { ... }` navigates to the macro; a module path (`io::` in `io::printfn`) navigates to the module's declaration.
+- `C3NavigationSweepTest` runs Go to Declaration on every identifier of the workspace named by `C3_QA_WORKSPACE` and prints what has no target, grouped by kind.
 - A local variable declared in an outer block resolves inside nested blocks (`sdl::Event event;` before a loop, used in the loop body's `if` and `switch`), so member access and navigation through it work there. Only the innermost block was searched. Loop and `if` header declarations are visible in their statement, sibling blocks stay invisible.
 - Go to Declaration on an enum, constdef or constset constant used as `Type.CONSTANT` (`sdl::Keycode.KEY_LEFT`) navigates to the constant. The reference was attached through a reference contributor, which navigation does not see on C3 elements, so it reported "Cannot find declaration to go to".
 - Go to Implementation on a type, function or variable usage navigates to its declaration. The platform took the usage for a declaration under the caret, because usage elements are named for rename, and reported "No implementations found"; Find Usages could fall back to the usage itself the same way.

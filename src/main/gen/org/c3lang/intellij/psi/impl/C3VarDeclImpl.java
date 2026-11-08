@@ -10,9 +10,9 @@ import com.intellij.psi.util.PsiTreeUtil;
 import static org.c3lang.intellij.psi.C3Types.*;
 import org.c3lang.intellij.psi.*;
 
-public class C3VarDeclImpl extends C3PsiElementImpl implements C3VarDecl {
+public class C3VarDeclImpl extends C3VarDeclMixinImpl implements C3VarDecl {
 
-  public C3VarDeclImpl(@NotNull ASTNode node) {
+  public C3VarDeclImpl(ASTNode node) {
     super(node);
   }
 

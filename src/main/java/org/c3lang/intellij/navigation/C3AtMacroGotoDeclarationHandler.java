@@ -10,6 +10,8 @@ import org.c3lang.intellij.psi.C3FullyQualifiedNamePsiElement;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
 import org.c3lang.intellij.psi.C3Path;
 import org.c3lang.intellij.psi.C3PathAtIdent;
+import org.c3lang.intellij.psi.*;
+import org.c3lang.intellij.psi.reference.C3Candidates;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,15 +39,24 @@ public final class C3AtMacroGotoDeclarationHandler implements GotoDeclarationHan
 		if (sourceElement == null) return null;
 
 		C3PathAtIdent atIdent = PsiTreeUtil.getParentOfType(sourceElement, C3PathAtIdent.class, false);
-		if (atIdent == null) return null;
-
-		String name = atIdentName(atIdent);
+		String name;
+		if (atIdent != null)
+		{
+			name = atIdentName(atIdent);
+		}
+		else if (sourceElement.getNode().getElementType() == C3Types.AT_IDENT && sourceElement.getParent() instanceof C3MacroImpliesBody)
+		{
+			name = sourceElement.getText(); // `fn ... => @pool() { ... }`: a bare token in the grammar
+		}
+		else
+		{
+			return null;
+		}
 		if (name.isEmpty()) return null;
-
-		C3ModuleDefinition moduleDefinition = atIdent.getModuleDefinition();
+		C3ModuleDefinition moduleDefinition = ((C3PsiElement) sourceElement.getParent()).getModuleDefinition();
 		List<PsiElement> targets = new ArrayList<>();
 		for (C3FullyQualifiedNamePsiElement el :
-			NameIndexService.INSTANCE.findByNameEndsWith(name, atIdent.getProject()))
+			NameIndexService.INSTANCE.findByNameEndsWith(name, sourceElement.getProject()))
 		{
 			if (el instanceof C3CallablePsiElement
 				&& name.equals(el.getFqName().getName())
@@ -54,7 +65,10 @@ public final class C3AtMacroGotoDeclarationHandler implements GotoDeclarationHan
 				targets.add(el);
 			}
 		}
-		return targets.isEmpty() ? null : targets.toArray(PsiElement.EMPTY_ARRAY);
+		if (targets.isEmpty()) return null;
+		List<C3PsiElement> closest = C3Candidates.closest(
+			targets.stream().map(C3FullyQualifiedNamePsiElement.class::cast).toList(), moduleDefinition);
+		return closest.toArray(PsiElement.EMPTY_ARRAY);
 	}
 
 	/** The {@code @name} part of the reference, without the optional module-path prefix. */

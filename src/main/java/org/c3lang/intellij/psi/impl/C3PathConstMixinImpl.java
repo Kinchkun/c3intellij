@@ -8,6 +8,7 @@ import com.intellij.psi.impl.source.resolve.reference.impl.PsiMultiReference;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.psi.*;
+import org.c3lang.intellij.psi.reference.C3Candidates;
 import org.c3lang.intellij.psi.reference.C3ReferenceBase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -58,12 +59,9 @@ public abstract class C3PathConstMixinImpl extends C3PsiNamedElementImpl impleme
 	@Override
 	public @Nullable LeafPsiElement getNameIdentElement()
 	{
-		PsiElement first = getFirstChild();
-		if (first != null && first.getNode().getElementType() == C3Types.CONST_IDENT)
-		{
-			return (LeafPsiElement) first;
-		}
-		return null;
+		// The CONST_IDENT, behind the optional module path (`frontend::WHITE`).
+		ASTNode constIdent = getNode().findChildByType(C3Types.CONST_IDENT);
+		return constIdent != null ? (LeafPsiElement) constIdent.getPsi() : null;
 	}
 
 	@Override
@@ -89,18 +87,21 @@ public abstract class C3PathConstMixinImpl extends C3PsiNamedElementImpl impleme
 		public @NotNull Collection<C3PsiElement> multiResolve()
 		{
 			C3ModuleDefinition moduleDefinition = myElement.getModuleDefinition();
-			java.util.List<C3PsiElement> result = new java.util.ArrayList<>();
+			String name = myElement.getNameIdent();
+			boolean qualified = myElement.getPath() != null;
+			java.util.List<C3FullyQualifiedNamePsiElement> result = new java.util.ArrayList<>();
 			for (C3FullyQualifiedNamePsiElement el :
 				NameIndexService.INSTANCE.findByNameEndsWith(myElement.getText(), myElement.getProject()))
 			{
-				if ((el instanceof C3ConstDeclarationStmt || el instanceof C3AliasName)
-					&& el.getFqName().getName().equals(myElement.getNameIdent())
-					&& moduleDefinition.containsImportOrSameModule(el))
-				{
-					result.add(el);
-				}
+				if (!moduleDefinition.containsImportOrSameModule(el)) continue;
+				boolean matches = (el instanceof C3ConstDeclarationStmt || el instanceof C3AliasName)
+					&& el.getFqName().getName().equals(name)
+					// `if (parsed == EXIT)`: an enum or constdef constant written without its type.
+					|| !qualified && el instanceof C3EnumConstant constant && constant.getConstIdent().equals(name)
+					|| !qualified && el instanceof C3ConstdefConstant constant && constant.getConstIdent().equals(name);
+				if (matches) result.add(el);
 			}
-			return result;
+			return C3Candidates.closest(result, moduleDefinition);
 		}
 
 		@Override

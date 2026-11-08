@@ -107,7 +107,7 @@ public final class CompletionExtensionsKt
 		{
 			PsiReference reference = pathIdent.getReference();
 			PsiElement resolved = reference != null ? reference.resolve() : null;
-			if (resolved instanceof C3Parameter || resolved instanceof C3GlobalName || resolved instanceof C3AliasName)
+			if (resolved instanceof C3FullyQualifiedTypeNameProvider && !(resolved instanceof C3LocalDeclAfterType))
 			{
 				FullyQualifiedName fqn = ((C3FullyQualifiedTypeNameProvider) resolved).findTypeName();
 				if (fqn != null)

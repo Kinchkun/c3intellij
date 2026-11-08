@@ -9,6 +9,7 @@ import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.index.StructService;
 import org.c3lang.intellij.psi.*;
+import org.c3lang.intellij.psi.reference.C3Candidates;
 import org.c3lang.intellij.psi.reference.C3ReferenceBase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -167,19 +168,23 @@ public abstract class C3AccessIdentMixinImpl extends C3PsiNamedElementImpl imple
 			String methodName = type.getName() + "." + ident;
 			C3ModuleDefinition moduleDefinition = context.getModuleDefinition();
 
-			List<C3PsiElement> result = new ArrayList<>();
+			List<C3FullyQualifiedNamePsiElement> result = new ArrayList<>();
 			for (C3FullyQualifiedNamePsiElement el :
 				NameIndexService.INSTANCE.findByNameEndsWith("." + ident, context.getProject()))
 			{
+				// A method declared in the module of its type comes with the type: `editor.lines.len()`
+				// resolves even where std::collections::list is not imported, as in c3c. A method
+				// declared elsewhere (an extension) must be imported.
+				boolean withType = type.getModule() != null && type.getModule().equals(el.getModuleName());
 				if (el instanceof C3CallablePsiElement callable
 					&& callable.getType() != null
 					&& el.getFqName().getName().equals(methodName)
-					&& moduleDefinition.containsImportOrSameModule(el))
+					&& (withType || moduleDefinition.containsImportOrSameModule(el)))
 				{
 					result.add(el);
 				}
 			}
-			return result;
+			return C3Candidates.closest(result, moduleDefinition);
 		}
 
 		@Override

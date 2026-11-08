@@ -2,6 +2,7 @@ package org.c3lang.intellij.stubs;
 
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.stubs.IndexSink;
+import org.c3lang.intellij.index.NameIndex;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.stubs.StubInputStream;
 import com.intellij.psi.stubs.StubOutputStream;
@@ -54,6 +55,7 @@ public class C3ConstdefConstantElementType extends C3StubElementType<C3ConstdefC
 	@Override
 	public void indexStub(@NotNull C3ConstdefConstantStub stub, @NotNull IndexSink sink)
 	{
-		// Intentionally not indexed yet.
+		// `module::Type.CONST`, so a bare `EXIT` finds `argparse::ParseResult.EXIT`.
+		sink.occurrence(NameIndex.KEY, stub.getFqName().getFullName() + "." + stub.getConstIdent());
 	}
 }
