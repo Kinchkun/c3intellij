@@ -3,6 +3,7 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Go to Implementation on a type, function or variable usage navigates to its declaration. The platform took the usage for a declaration under the caret, because usage elements are named for rename, and reported "No implementations found"; Find Usages could fall back to the usage itself the same way.
 - Struct members declared together (`int w, h;`, `float x, y, w, h;`) resolve, complete and are no longer reported as unresolved. Only the joined text `w, h` was indexed as a member name.
 - Quick Definition (Ctrl+Shift+I) shows the whole declaration: the function with its body, the struct or enum with its members, the global or alias line. It showed only the line of the named element a usage resolves to.
 - Aliases (`alias mem @builtin = thread_allocator;`, `alias MAX = LIMIT;`) resolve: Go to Declaration, Find Usages, rename and member access through them work, also from the auto-imported `std::core` modules.
