@@ -3,6 +3,7 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Quick Definition (Ctrl+Shift+I) on a function or method call shows the whole function. It showed only the header line, because that is the element a call resolves to.
 - Aliases (`alias mem @builtin = thread_allocator;`, `alias MAX = LIMIT;`) resolve: Go to Declaration, Find Usages, rename and member access through them work, also from the auto-imported `std::core` modules.
 - A float suffix on an integer literal (`255f`, `1d`) lexes as a float literal. Such a literal broke the parse of the rest of the file, so types declared after it (`frontend::Window`) did not resolve.
 - The "Result of this expression is not used" warning offers a second quick fix, "Discard result with (void)", next to "Create local variable".

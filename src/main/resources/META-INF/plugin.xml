@@ -61,6 +61,9 @@
                                   implementationClass="org.c3lang.intellij.structure.C3StructureViewFactory"/>
     <gotoSymbolContributor implementation="org.c3lang.intellij.C3SymbolContributor"/>
     <gotoDeclarationHandler implementation="org.c3lang.intellij.navigation.C3AtMacroGotoDeclarationHandler"/>
+    <!-- Quick Definition shows a whole function, not only the header a call resolves to. -->
+    <lang.implementationTextSelectioner language="C3"
+                                        implementationClass="org.c3lang.intellij.navigation.C3ImplementationTextSelectioner"/>
     <lang.documentationProvider language="C3"
                                 implementationClass="org.c3lang.intellij.docs.C3DocumentationProvider" />
     <psi.referenceContributor language="C3"
