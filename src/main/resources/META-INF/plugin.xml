@@ -114,6 +114,12 @@
                      level="ERROR"
                      implementationClass="org.c3lang.intellij.intention.C3InterfaceImplementationInspection" />
     <localInspection language="C3"
+                     displayName="Missing generic parameters"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="ERROR"
+                     implementationClass="org.c3lang.intellij.intention.C3MissingGenericParametersInspection" />
+    <localInspection language="C3"
                      displayName="Unresolved type"
                      groupName="C3"
                      enabledByDefault="true"
