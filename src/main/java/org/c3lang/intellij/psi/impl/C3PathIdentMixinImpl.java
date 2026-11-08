@@ -112,24 +112,51 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 	@Override
 	public @NotNull List<C3LocalDeclAfterType> findLocalDeclAfterType()
 	{
-		C3CompoundStatement compoundStatement =
-			PsiTreeUtil.getParentOfType(this, C3CompoundStatement.class);
-		if (compoundStatement == null) return Collections.emptyList();
-
-		Collection<C3LocalDeclAfterType> all =
-			PsiTreeUtil.collectElementsOfType(compoundStatement, C3LocalDeclAfterType.class);
-		C3LocalDeclAfterType best = null;
-		for (C3LocalDeclAfterType decl : all)
-		{
-			if (decl.getTextOffset() < getTextOffset()
-				&& decl.getNameIdent() != null
-				&& decl.getNameIdent().equals(getNameIdent())
-				&& (best == null || decl.getTextOffset() > best.getTextOffset()))
-			{
-				best = decl;
-			}
-		}
+		C3LocalDeclAfterType best = findVisibleLocalDeclaration(this);
 		return best != null ? Collections.singletonList(best) : Collections.emptyList();
+	}
+
+	/**
+	 * The nearest preceding local declaration of {@code usage}'s name whose scope encloses the
+	 * usage: a declaration in the same block or in any enclosing block (so {@code sdl::Event event;}
+	 * before a loop is visible inside the loop's nested blocks), a loop or {@code if} header
+	 * declaration inside that statement; never one of a sibling block, and the innermost wins.
+	 */
+	private static @Nullable C3LocalDeclAfterType findVisibleLocalDeclaration(@NotNull C3PathIdent usage)
+	{
+		String name = usage.getNameIdent();
+		if (name == null) return null;
+		C3CompoundStatement outermost = null;
+		for (C3CompoundStatement block = PsiTreeUtil.getParentOfType(usage, C3CompoundStatement.class);
+			block != null; block = PsiTreeUtil.getParentOfType(block, C3CompoundStatement.class))
+		{
+			outermost = block;
+		}
+		if (outermost == null) return null;
+
+		C3LocalDeclAfterType best = null;
+		for (C3LocalDeclAfterType decl : PsiTreeUtil.collectElementsOfType(outermost, C3LocalDeclAfterType.class))
+		{
+			if (decl.getTextOffset() >= usage.getTextOffset() || !name.equals(decl.getNameIdent())) continue;
+			if (!PsiTreeUtil.isAncestor(scopeOf(decl), usage, false)) continue;
+			if (best == null || decl.getTextOffset() > best.getTextOffset()) best = decl;
+		}
+		return best;
+	}
+
+	/**
+	 * The element a local declaration is visible in: the statement owning its header for
+	 * {@code for (int i = 0; ...)} and {@code if (int x = f())}, otherwise its block.
+	 */
+	private static @Nullable PsiElement scopeOf(@NotNull C3LocalDeclAfterType decl)
+	{
+		C3DeclOrExpr header = PsiTreeUtil.getParentOfType(decl, C3DeclOrExpr.class);
+		if (header != null)
+		{
+			C3Statement statement = PsiTreeUtil.getParentOfType(header, C3Statement.class);
+			if (statement != null) return statement;
+		}
+		return PsiTreeUtil.getParentOfType(decl, C3CompoundStatement.class);
 	}
 
 
@@ -220,7 +247,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		return global.multiResolve().isEmpty() ? callable : global;
 	}
 
-	/** Resolves to the nearest preceding local declaration of the same name in the enclosing block. */
+	/** Resolves to the nearest preceding local declaration of the same name whose scope encloses the usage. */
 	private static class C3LocalDeclAfterTypeReference extends C3ReferenceBase<C3PathIdent>
 	{
 		C3LocalDeclAfterTypeReference(@NotNull C3PathIdent element)
@@ -231,23 +258,7 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		@Override
 		public @NotNull Collection<C3PsiElement> multiResolve()
 		{
-			C3CompoundStatement compoundStatement =
-				PsiTreeUtil.getParentOfType(myElement, C3CompoundStatement.class);
-			if (compoundStatement == null) return Collections.emptyList();
-
-			Collection<C3LocalDeclAfterType> all =
-				PsiTreeUtil.collectElementsOfType(compoundStatement, C3LocalDeclAfterType.class);
-			C3LocalDeclAfterType best = null;
-			for (C3LocalDeclAfterType decl : all)
-			{
-				if (decl.getTextOffset() < myElement.getTextOffset()
-					&& decl.getNameIdent() != null
-					&& decl.getNameIdent().equals(myElement.getNameIdent())
-					&& (best == null || decl.getTextOffset() > best.getTextOffset()))
-				{
-					best = decl;
-				}
-			}
+			C3LocalDeclAfterType best = findVisibleLocalDeclaration(myElement);
 			return best != null ? Collections.singletonList(best) : Collections.emptyList();
 		}
 	}
