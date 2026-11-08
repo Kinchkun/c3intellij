@@ -79,4 +79,19 @@ public class C3StructMemberCompletionTest extends C3TestCase
 		assertNotNull("program_name did not resolve", target);
 		assertEquals("args.c3", target.getContainingFile().getName());
 	}
+
+	/** `int w, h;` offers `w` and `h` as separate members, not one entry `w, h`. */
+	public void testMultiNameMembers()
+	{
+		myFixture.configureByText("size.c3",
+			"module app;\nstruct Size { int w, h; int depth; }\nfn void f()\n{\n    Size s;\n    s.<caret>\n}\n");
+		myFixture.completeBasic();
+		List<String> lookups = myFixture.getLookupElementStrings();
+		System.out.println("[TEST] multi = " + lookups);
+		assertNotNull(lookups);
+		assertTrue("w missing: " + lookups, lookups.contains("w"));
+		assertTrue("h missing: " + lookups, lookups.contains("h"));
+		assertTrue("depth missing: " + lookups, lookups.contains("depth"));
+		assertFalse("joined names offered: " + lookups, lookups.contains("w, h"));
+	}
 }

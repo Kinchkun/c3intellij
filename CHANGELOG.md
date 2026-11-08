@@ -3,6 +3,7 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Struct members declared together (`int w, h;`, `float x, y, w, h;`) resolve, complete and are no longer reported as unresolved. Only the joined text `w, h` was indexed as a member name.
 - Quick Definition (Ctrl+Shift+I) shows the whole declaration: the function with its body, the struct or enum with its members, the global or alias line. It showed only the line of the named element a usage resolves to.
 - Aliases (`alias mem @builtin = thread_allocator;`, `alias MAX = LIMIT;`) resolve: Go to Declaration, Find Usages, rename and member access through them work, also from the auto-imported `std::core` modules.
 - A float suffix on an integer literal (`255f`, `1d`) lexes as a float literal. Such a literal broke the parse of the rest of the file, so types declared after it (`frontend::Window`) did not resolve.

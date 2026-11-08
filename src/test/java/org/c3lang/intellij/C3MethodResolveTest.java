@@ -117,4 +117,14 @@ public class C3MethodResolveTest extends C3TestCase
 		assertNotNull("c.set_opt should resolve to the method", resolved);
 		assertTrue(resolved.getText().contains("set_opt"));
 	}
+
+	/** `size.h` resolves to the declaration `int w, h;`, the second of its names. */
+	public void testSecondNameOfMultiNameFieldResolves()
+	{
+		myFixture.configureByText("main.c3",
+			"module app;\nstruct Size { int w, h; }\nfn void f(Size size)\n{\n    int a = size.<caret>h;\n}\n");
+		PsiElement resolved = resolveAccessAtCaret();
+		assertNotNull("size.h should resolve to the field declaration", resolved);
+		assertTrue(resolved.getText(), resolved.getText().contains("int w, h;"));
+	}
 }

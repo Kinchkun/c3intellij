@@ -93,6 +93,39 @@ public class C3StructMemberDeclarationStub extends StubBase<C3StructMemberDeclar
 		return fullPath;
 	}
 
+	/**
+	 * The index keys of this member, one per declared name: {@code int w, h;} in {@code Size}
+	 * declares {@code Size.w} and {@code Size.h}.
+	 */
+	public @NotNull List<String> getFullPaths()
+	{
+		if (structType == null) return List.of();
+		List<String> keys = new ArrayList<>();
+		for (String path : memberPaths(structPath))
+		{
+			keys.add(structType.getFullName() + "." + path);
+		}
+		return keys;
+	}
+
+	/**
+	 * Expands a struct path whose last segment lists several names ({@code inner.w, h}) into one
+	 * path per name ({@code inner.w}, {@code inner.h}); a single-name path stays as it is.
+	 */
+	public static @NotNull List<String> memberPaths(@Nullable String structPath)
+	{
+		if (structPath == null) return List.of();
+		int dot = structPath.lastIndexOf('.');
+		String prefix = dot >= 0 ? structPath.substring(0, dot + 1) : "";
+		List<String> paths = new ArrayList<>();
+		for (String name : structPath.substring(dot + 1).split(","))
+		{
+			String trimmed = name.trim();
+			if (!trimmed.isEmpty()) paths.add(prefix + trimmed);
+		}
+		return paths;
+	}
+
 	public void serialize(@NotNull StubOutputStream stream) throws IOException
 	{
 		StubStreamExtensions.writeNullableUTFFast(stream, structType != null ? structType.getFullName() : null);

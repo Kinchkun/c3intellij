@@ -2,7 +2,10 @@ package org.c3lang.intellij.psi;
 
 import com.intellij.psi.StubBasedPsiElement;
 import org.c3lang.intellij.stubs.C3StructMemberDeclarationStub;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public interface C3StructMemberDeclarationMixin
 	extends StubBasedPsiElement<C3StructMemberDeclarationStub>,
@@ -15,6 +18,16 @@ public interface C3StructMemberDeclarationMixin
 	@Nullable FullyQualifiedName getStructType();
 	@Nullable String getStructPath();
 	@Nullable FullyQualifiedName getStructPathType();
+
+	/**
+	 * The struct paths this declaration introduces, one per declared name: {@code int w, h;}
+	 * yields {@code w} and {@code h}, a nested {@code inner.w, h} yields {@code inner.w} and
+	 * {@code inner.h}. {@link #getStructPath()} keeps the names joined as written.
+	 */
+	default @NotNull List<String> getMemberPaths()
+	{
+		return C3StructMemberDeclarationStub.memberPaths(getStructPath());
+	}
 
 	/**
 	 * The member's type, resolved to the module that declares it. {@link #getStructPathType()} is

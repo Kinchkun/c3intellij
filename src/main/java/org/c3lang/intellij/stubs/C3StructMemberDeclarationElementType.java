@@ -55,7 +55,10 @@ public class C3StructMemberDeclarationElementType extends C3StubElementType<C3St
 	@Override
 	public void indexStub(@NotNull C3StructMemberDeclarationStub stub, @NotNull IndexSink sink)
 	{
-		String fullPath = stub.getFullPath();
-		if (fullPath != null) sink.occurrence(StructMemberDeclarationIndex.KEY, fullPath);
+		// One key per declared name, so `int w, h;` is found as both `Size.w` and `Size.h`.
+		for (String fullPath : stub.getFullPaths())
+		{
+			sink.occurrence(StructMemberDeclarationIndex.KEY, fullPath);
+		}
 	}
 }

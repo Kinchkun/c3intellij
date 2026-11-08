@@ -73,8 +73,8 @@ public final class StructService
             List<Pair<AccessPath, String>> nextFields = new ArrayList<>();
             for (C3StructMemberDeclaration structField : findStructMembers(query + "." + ident, project))
             {
-                String structPath = structField.getStructPath();
-                if (structPath != null)
+                // `int w, h;` is one declaration with two names: offer each of them.
+                for (String structPath : structField.getMemberPaths())
                 {
                     nextFields.add(new Pair<>(
                         new AccessPath(structPath),

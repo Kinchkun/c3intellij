@@ -115,4 +115,13 @@ public class C3UnresolvedMethodTest extends C3TestCase
 	{
 		assertEquals(0, crossModuleErrors("  int n = object.x;\n"));
 	}
+
+	/** `int w, h;` declares two fields: neither is an unresolved member. */
+	public void testMultiNameFieldsAreNotErrors()
+	{
+		long errors = unresolvedErrors(
+			"module app;\nstruct Size { int w, h; }\nstruct Rect { float x, y, w, h; }\n"
+				+ "fn void f(Size size, Rect rect)\n{\n    int a = size.w + size.h;\n    rect.x = rect.y + rect.w + rect.h;\n}\n");
+		assertEquals(0, errors);
+	}
 }
