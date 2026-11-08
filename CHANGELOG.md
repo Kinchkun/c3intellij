@@ -3,6 +3,7 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Go to Declaration on an enum, constdef or constset constant used as `Type.CONSTANT` (`sdl::Keycode.KEY_LEFT`) navigates to the constant. The reference was attached through a reference contributor, which navigation does not see on C3 elements, so it reported "Cannot find declaration to go to".
 - Go to Implementation on a type, function or variable usage navigates to its declaration. The platform took the usage for a declaration under the caret, because usage elements are named for rename, and reported "No implementations found"; Find Usages could fall back to the usage itself the same way.
 - Struct members declared together (`int w, h;`, `float x, y, w, h;`) resolve, complete and are no longer reported as unresolved. Only the joined text `w, h` was indexed as a member name.
 - Quick Definition (Ctrl+Shift+I) shows the whole declaration: the function with its body, the struct or enum with its members, the global or alias line. It showed only the line of the named element a usage resolves to.

@@ -46,6 +46,9 @@
     mixin("path_ident_expr") = "org.c3lang.intellij.psi.impl.C3PathIdentExprMixinImpl"
     implements("path_ident_expr") = "org.c3lang.intellij.psi.C3PathIdentExprMixin"
 
+    mixin("enum_access_expr") = "org.c3lang.intellij.psi.impl.C3EnumAccessExprMixinImpl"
+    implements("enum_access_expr") = "org.c3lang.intellij.psi.C3EnumAccessExprMixin"
+
     mixin("path_const") = "org.c3lang.intellij.psi.impl.C3PathConstMixinImpl"
     implements("path_const") = "org.c3lang.intellij.psi.C3PathConstMixin"
 

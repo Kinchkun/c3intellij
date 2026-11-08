@@ -68,9 +68,6 @@
                                         implementationClass="org.c3lang.intellij.navigation.C3ImplementationTextSelectioner"/>
     <lang.documentationProvider language="C3"
                                 implementationClass="org.c3lang.intellij.docs.C3DocumentationProvider" />
-    <psi.referenceContributor language="C3"
-                              implementation="org.c3lang.intellij.psi.reference.C3ReferenceContributor" />
-    <referencesSearch implementation="org.c3lang.intellij.findUsages.C3EnumConstantReferencesSearch" />
     <usageTypeProvider implementation="org.c3lang.intellij.findUsages.C3UsageTypeProvider" />
     <readWriteAccessDetector implementation="org.c3lang.intellij.findUsages.C3ReadWriteAccessDetector" />
     <typedHandler implementation="org.c3lang.intellij.C3DocCommentTypedHandler" />

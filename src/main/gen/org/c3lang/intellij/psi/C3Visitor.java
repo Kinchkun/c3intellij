@@ -325,6 +325,7 @@ public class C3Visitor extends PsiElementVisitor {
 
   public void visitEnumAccessExpr(@NotNull C3EnumAccessExpr o) {
     visitExpr(o);
+    // visitEnumAccessExprMixin(o);
   }
 
   public void visitEnumConstant(@NotNull C3EnumConstant o) {
