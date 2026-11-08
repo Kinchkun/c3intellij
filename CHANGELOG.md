@@ -3,6 +3,7 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Quick Documentation on a module path no longer throws. The module doc lookup stepped from the module section to its parent, the file, and on to a sibling file of the directory, where a binary file has no syntax node; it now reads the doc comment before the module statement.
 - A name declared in several visible modules resolves to the closest declaration: the usage's own module, then explicitly imported modules, then the auto-imported `std::core`. Such a name had no navigation target at all before (`Color` in `ted::frontend` next to `sdl::Color`, `write_trace`, `min`). Names that stay ambiguous offer a chooser.
 - Loop variables of `foreach`, the variables of `if (catch err = ...)` and `if (try v = ...)`, and `var x = ...` declarations resolve, with Find Usages and rename; a written type on them types member access.
 - Qualified constants (`frontend::WHITE`, `log::CATEGORY_APPLICATION`) resolve again; a check added in 3.2.0 compared the wrong name. An enum or constdef constant written bare (`if (parsed == EXIT)`) resolves to the constant.

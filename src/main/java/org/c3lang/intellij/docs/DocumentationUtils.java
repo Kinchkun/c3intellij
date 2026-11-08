@@ -12,6 +12,7 @@ import com.intellij.psi.PsiWhiteSpace;
 import org.c3lang.intellij.C3Language;
 import org.c3lang.intellij.C3ParserDefinition;
 import org.c3lang.intellij.psi.C3DefaultModuleSection;
+import org.c3lang.intellij.psi.C3ModuleSection;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -34,10 +35,21 @@ public final class DocumentationUtils
 
     public static @NotNull String findDocumentationComment(@NotNull PsiElement element)
     {
-        PsiElement prev = element.getParent() != null
-            && element.getParent().getParent() instanceof C3DefaultModuleSection
-            ? element.getParent().getParent().getPrevSibling()
-            : element.getParent() != null ? element.getParent().getPrevSibling() : null;
+        PsiElement prev;
+        if (element instanceof C3ModuleSection)
+        {
+            // A module's documentation precedes its `module` statement (the start of its section);
+            // the section's parent is the file, whose siblings are other files of the directory.
+            prev = element.getPrevSibling();
+        }
+        else if (element.getParent() != null && element.getParent().getParent() instanceof C3DefaultModuleSection)
+        {
+            prev = element.getParent().getParent().getPrevSibling();
+        }
+        else
+        {
+            prev = element.getParent() != null ? element.getParent().getPrevSibling() : null;
+        }
 
         while (prev instanceof PsiWhiteSpace)
         {
@@ -47,7 +59,7 @@ public final class DocumentationUtils
         if (prev == null) return "";
 
         StringBuilder builder = new StringBuilder();
-        while (prev != null && prev.getNode().getElementType() == C3ParserDefinition.DOC_COMMENT)
+        while (prev != null && prev.getNode() != null && prev.getNode().getElementType() == C3ParserDefinition.DOC_COMMENT)
         {
             builder.append(prev.getText()).append('\n');
             prev = prev.getPrevSibling();
