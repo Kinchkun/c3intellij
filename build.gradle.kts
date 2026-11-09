@@ -32,11 +32,21 @@ sourceSets {
     }
 }
 
+// Locally installed CLion. Defaults to ~/Applications/CLion.app, so it works on every
+// machine regardless of the user name. Override with -PclionPath=/path/to/IDE.app or
+// the CLION_PATH env var.
+val clionPath: Provider<String> = providers.gradleProperty("clionPath")
+    .orElse(providers.environmentVariable("CLION_PATH"))
+    .orElse(providers.systemProperty("user.home").map { "$it/Applications/CLion.app" })
+
 repositories {
     // A global ~/.gradle init script adds a project-level repository, which (under
     // Gradle's default PREFER_PROJECT mode) overrides the repositories declared in
     // settings.gradle.kts. Re-declare the IntelliJ Platform repositories here so the
-    // local-IDE artifacts repository used by local(...) is available.
+    // local-IDE artifacts repository used by local(...) is available. Since any
+    // project-level repository disables the settings ones, mavenCentral() is needed
+    // here too (otherwise machines without that init script lose it).
+    mavenCentral()
     intellijPlatform {
         defaultRepositories()
     }
@@ -49,12 +59,8 @@ dependencies {
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
         // Use a locally installed IDE (CLion is the recommended IDE for C3).
-        // Override the location with -PclionPath=/path/to/IDE.app or the CLION_PATH env var.
-        local(
-            providers.gradleProperty("clionPath")
-                .orElse(providers.environmentVariable("CLION_PATH"))
-                .orElse("/Users/kinch/Applications/CLion.app")
-        )
+        // See clionPath above for how the location is resolved.
+        local(clionPath)
         // Native Debugging Support (LLDB/CIDR). Used only by the optional, CLion-gated
         // debugger integration (see cidrdebugger.xml); the base plugin stays compatible
         // with non-CLion IDEs because that integration is an optional dependency.
@@ -74,14 +80,7 @@ dependencies {
 intellijPlatform {
     pluginVerification {
         ides {
-            local(
-                file(
-                    providers.gradleProperty("clionPath")
-                        .orElse(providers.environmentVariable("CLION_PATH"))
-                        .orElse("/Users/kinch/Applications/CLion.app")
-                        .get()
-                )
-            )
+            local(file(clionPath.get()))
         }
     }
 }
