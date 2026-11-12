@@ -15,7 +15,8 @@ import org.c3lang.intellij.psi.C3CallExprTail;
 import org.c3lang.intellij.psi.C3Expr;
 import org.c3lang.intellij.psi.C3ExprStmt;
 import org.c3lang.intellij.psi.C3File;
-import org.c3lang.intellij.psi.C3FuncDef;
+import org.c3lang.intellij.psi.C3OptionalType;
+import org.c3lang.intellij.psi.C3Types;
 import org.c3lang.intellij.psi.C3UnaryExpr;
 import org.c3lang.intellij.psi.C3Visitor;
 import org.jetbrains.annotations.NotNull;
@@ -30,9 +31,12 @@ import java.util.Set;
  * result with (void)</i> marks the discard as intentional.
  *
  * <p>Statements that exist for their side effect are not reported: assignments, increments
- * ({@code x++}), optional-unwraps ({@code mayFail()!}) and explicit {@code (void)} discards. Calls
- * are only reported when the callee resolves to a function with a non-{@code void} return type that
- * is not {@code @maydiscard} — so calling a {@code void} function as a statement stays clean.</p>
+ * ({@code x++}) and explicit {@code (void)} discards. Calls are only reported when the callee
+ * resolves to a function, or a macro with a written return type, whose type is not {@code void} or
+ * {@code void?} and that is not {@code @maydiscard} — so calling a {@code void} function as a
+ * statement stays clean. {@code mayFail()!} and {@code mayFail()!!} look through the unwrap: a
+ * {@code void?} callee is pure error handling, a {@code T?} one still produces a {@code T} that is
+ * being thrown away.</p>
  */
 public final class C3UnusedExpressionResultInspection extends LocalInspectionTool
 {
@@ -89,17 +93,30 @@ public final class C3UnusedExpressionResultInspection extends LocalInspectionToo
 		if (expr instanceof C3CallExpr call)
 		{
 			C3CallExprTail tail = call.getCallExprTail();
-			// A `(...)` invocation is a real call; ++/--/!/!!/~ tails are postfix side effects.
-			if (tail == null || tail.getCallInvocation() == null) return null;
+			if (tail == null) return null;
+			// `mayFail()!` and `mayFail()!!` only unwrap the optional: the value that comes out is
+			// still a result, and discarding it is as suspicious as discarding a plain call's.
+			boolean unwrapped = isRethrow(tail);
+			if (unwrapped)
+			{
+				if (!(call.getExpr() instanceof C3CallExpr inner)) return null;
+				call = inner;
+				tail = inner.getCallExprTail();
+				if (tail == null) return null;
+			}
+			// A `(...)` invocation is a real call; ++/--/~ tails are postfix side effects.
+			if (tail.getCallInvocation() == null) return null;
 			// A trailing block (`@pool() { ... }`) is a body-macro invocation, not a discarded value.
 			if (tail.getCompoundStatement() != null) return null;
 
-			C3FuncDef callee = C3Callees.resolve(call) instanceof C3FuncDef funcDef ? funcDef : null;
-			if (callee == null) return null; // unknown callee (e.g. a macro) — stay quiet to avoid noise
-
-			String returnType = returnTypeText(callee);
-			if (returnType == null || returnType.equals("void") || C3Callees.isMayDiscard(callee)) return null;
-			return new Discarded(returnType);
+			// Unknown callees and macros without a written return type stay quiet to avoid noise.
+			PsiElement callee = C3Callees.resolve(call);
+			C3OptionalType returnType = C3Callees.returnType(callee);
+			if (returnType == null || C3Callees.isMayDiscard(callee)) return null;
+			String text = returnType.getText().trim();
+			if (text.isEmpty() || text.equals("void") || text.equals("void?")) return null;
+			if (unwrapped && text.endsWith("?")) text = text.substring(0, text.length() - 1).trim();
+			return new Discarded(text);
 		}
 
 		// Any other expression statement (`a + b;`, `obj.field;`, a lone name) is pure and useless;
@@ -116,20 +133,18 @@ public final class C3UnusedExpressionResultInspection extends LocalInspectionToo
 		return false;
 	}
 
+	private static boolean isRethrow(@NotNull C3CallExprTail tail)
+	{
+		return tail.getNode().findChildByType(C3Types.BANG) != null
+			|| tail.getNode().findChildByType(C3Types.BANGBANG) != null;
+	}
+
 	private static boolean isIncrementOrCast(@NotNull C3UnaryExpr unary)
 	{
 		// A cast operator `(Type)` carries a type; `(void)expr;` is an explicit discard.
 		if (unary.getUnaryOp().getType() != null) return true;
 		String op = unary.getUnaryOp().getText();
 		return op.equals("++") || op.equals("--");
-	}
-
-	private static @Nullable String returnTypeText(@NotNull C3FuncDef funcDef)
-	{
-		PsiElement optionalType = funcDef.getFuncHeader().getOptionalType();
-		if (optionalType == null) return null;
-		String text = optionalType.getText().trim();
-		return text.isEmpty() ? null : text;
 	}
 
 	private record Discarded(@Nullable String typeText)
