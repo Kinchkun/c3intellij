@@ -75,7 +75,7 @@ public class ImportModuleInspection extends LocalInspectionTool
                 }
 
                 C3ModuleDefinition importProvider = java.util.Objects.requireNonNull(
-                    PsiTreeUtil.getParentOfType(psi, C3ModuleDefinition.class)
+                    psi.findModuleDefinition()
                 );
 
                 ModuleName importIntention = element.getFqName().getModule();

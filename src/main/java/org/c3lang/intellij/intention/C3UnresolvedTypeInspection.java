@@ -77,7 +77,7 @@ public final class C3UnresolvedTypeInspection extends LocalInspectionTool
 				String name = baseType.getNameIdent();
 				if (nameElement == null || name == null || name.isEmpty()) return;
 
-				C3ModuleDefinition moduleSection = PsiTreeUtil.getParentOfType(baseType, C3ModuleDefinition.class);
+				C3ModuleDefinition moduleSection = baseType.findModuleDefinition();
 				if (moduleSection == null) return;
 
 				Set<ModuleName> importable = new LinkedHashSet<>();
@@ -138,7 +138,7 @@ public final class C3UnresolvedTypeInspection extends LocalInspectionTool
 		}
 
 		// Module-level parameters live on the `module` statement, a sibling of the declarations.
-		C3ModuleDefinition section = PsiTreeUtil.getParentOfType(baseType, C3ModuleDefinition.class);
+		C3ModuleDefinition section = baseType.findModuleDefinition();
 		if (section != null)
 		{
 			C3Module module = PsiTreeUtil.getChildOfType(section, C3Module.class);

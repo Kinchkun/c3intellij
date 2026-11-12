@@ -3,6 +3,7 @@
 # C3IntelliJ Changelog
 
 ## [Unreleased]
+- Fixed a NullPointerException from getModuleDefinition() during Find Usages and the "Unused declaration" inspection (seen while processing `editor.c3`). Stub-backed declarations navigate their parents through the stub tree when a stub is attached, and module sections are not stub elements, so the walk skipped them for files loaded from the index; the module lookup now follows the AST.
 - "Result of this expression is not used" now looks through `!` and `!!`: `client.execute(&req)!!;` unwraps an `HttpResponse?` and throws the response away, so it is reported, and "Create local variable" declares an `HttpResponse`. Unwrapping a `void?` stays clean. Macros with a written return type are reported like functions.
 - Completing a `@builtin` declaration from the auto-imported `std::core` modules (`abort`, `unreachable`, `NOT_FOUND`, ...) inserts its bare name; it inserted `builtin::abort(...)`, a module path such names never need. The flag is recorded in the index, so the stubs are rebuilt once after the update.
 - The "Duplicate variable declaration" error no longer fires when two `case` (or `default`) bodies of one `switch` declare the same name (`String value` in one case, `Duration value` in the next). Each case body is its own scope, as in the compiler; the inspection compared everything up to the enclosing block.

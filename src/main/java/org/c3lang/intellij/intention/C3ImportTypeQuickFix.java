@@ -9,6 +9,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
+import org.c3lang.intellij.psi.C3PsiElement;
 import org.c3lang.intellij.psi.ModuleName;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,7 +42,7 @@ public final class C3ImportTypeQuickFix implements LocalQuickFix
 		PsiElement element = descriptor.getPsiElement();
 		if (element == null) return;
 
-		C3ModuleDefinition moduleSection = PsiTreeUtil.getParentOfType(element, C3ModuleDefinition.class);
+		C3ModuleDefinition moduleSection = C3PsiElement.findModuleDefinition(element);
 		if (moduleSection == null) return;
 
 		AddImportQuickFix.ImportAction action = AddImportQuickFix.addImportAsText(new ModuleName(moduleName), moduleSection);

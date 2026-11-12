@@ -248,7 +248,7 @@ public final class C3MoveTypeToFileAction extends AnAction
 		C3TopLevel typeTopLevel = target.typeTopLevel;
 		String name = target.typeName;
 
-		C3ModuleDefinition section = PsiTreeUtil.getParentOfType(typeTopLevel, C3ModuleDefinition.class);
+		C3ModuleDefinition section = typeTopLevel.findModuleDefinition();
 		if (section == null) return null;
 
 		String moduleStatement = section instanceof C3ModuleSection ms ? ms.getModule().getText().trim() : "";

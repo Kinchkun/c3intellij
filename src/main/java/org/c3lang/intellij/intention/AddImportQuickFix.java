@@ -76,7 +76,7 @@ public class AddImportQuickFix extends LocalQuickFixAndIntentionActionOnPsiEleme
                 return;
             }
             C3ModuleDefinition moduleSection = java.util.Objects.requireNonNull(
-                PsiTreeUtil.getParentOfType(path, C3ModuleDefinition.class)
+                path.findModuleDefinition()
             );
 
             path.putUserData(KEY, importIntention);

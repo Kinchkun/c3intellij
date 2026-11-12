@@ -20,7 +20,7 @@ public interface C3ModuleNamePsiElement extends C3PsiElement
 		// import context of a reference) it is used directly, instead of looking for a
 		// non-existent enclosing module and throwing.
 		C3ModuleDefinition moduleDefinition =
-			PsiTreeUtil.getParentOfType(this, C3ModuleDefinition.class, false);
+			findModuleDefinition();
 		if (moduleDefinition == null) return false;
 		return other.getModuleDefinition().equals(moduleDefinition)
 			|| moduleDefinition.getVisibleModulePrefix(other.getModuleName()) != null;

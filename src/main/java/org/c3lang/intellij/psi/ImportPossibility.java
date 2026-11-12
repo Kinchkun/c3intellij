@@ -80,7 +80,7 @@ public sealed interface ImportPossibility permits ImportPossibility.Noop, Import
             if (scopes.length <= 1) return Noop.INSTANCE;
 
             C3ModuleDefinition moduleDefinition = Objects.requireNonNull(
-                PsiTreeUtil.getParentOfType(psi, C3ModuleDefinition.class)
+                psi.findModuleDefinition()
             );
             ModuleName importIntention = new ModuleName(dropPostfix(path.getText(), "::"));
             List<String> importSuffixes = moduleDefinition.getImports().stream()

@@ -124,7 +124,7 @@ public final class ModuleName
             }
             else
             {
-                moduleSection = PsiTreeUtil.getParentOfType(psi, C3ModuleDefinition.class, false);
+                moduleSection = psi.findModuleDefinition();
             }
             if (moduleSection == null) return List.of();
 
