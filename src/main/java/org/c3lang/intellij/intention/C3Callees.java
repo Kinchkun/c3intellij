@@ -4,6 +4,8 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.psi.C3AccessIdent;
+import org.c3lang.intellij.psi.C3Attribute;
+import org.c3lang.intellij.psi.C3Attributes;
 import org.c3lang.intellij.psi.C3CallExpr;
 import org.c3lang.intellij.psi.C3Expr;
 import org.c3lang.intellij.psi.C3FuncDef;
@@ -12,6 +14,8 @@ import org.c3lang.intellij.psi.C3OptionalType;
 import org.c3lang.intellij.psi.C3PathIdent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Locale;
 
 /** Resolves what a call invokes, and reads the declared return type of a function or macro. */
 final class C3Callees
@@ -52,5 +56,20 @@ final class C3Callees
 		if (callable instanceof C3FuncDef funcDef) return funcDef.getFuncHeader().getOptionalType();
 		if (callable instanceof C3MacroDefinition macro) return macro.getMacroHeader().getOptionalType();
 		return null;
+	}
+
+	/** Whether the function or macro is {@code @maydiscard}, so its result may be ignored. */
+	static boolean isMayDiscard(@Nullable PsiElement callable)
+	{
+		C3Attributes attributes = callable instanceof C3FuncDef funcDef ? funcDef.getAttributes()
+			: callable instanceof C3MacroDefinition macro ? macro.getAttributes() : null;
+		if (attributes == null) return false;
+		for (C3Attribute attribute : attributes.getAttributeList())
+		{
+			String text = attribute.getAttributeName().getText();
+			String simple = text.substring(text.lastIndexOf(':') + 1).replace("@", "").toLowerCase(Locale.ROOT);
+			if (simple.equals("maydiscard")) return true;
+		}
+		return false;
 	}
 }

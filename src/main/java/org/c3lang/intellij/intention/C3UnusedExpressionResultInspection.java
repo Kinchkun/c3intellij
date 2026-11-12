@@ -8,8 +8,6 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.psi.C3AssignTypeExpr;
-import org.c3lang.intellij.psi.C3Attribute;
-import org.c3lang.intellij.psi.C3Attributes;
 import org.c3lang.intellij.psi.C3BinaryExpr;
 import org.c3lang.intellij.psi.C3BinaryOp;
 import org.c3lang.intellij.psi.C3CallExpr;
@@ -23,7 +21,6 @@ import org.c3lang.intellij.psi.C3Visitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -101,7 +98,7 @@ public final class C3UnusedExpressionResultInspection extends LocalInspectionToo
 			if (callee == null) return null; // unknown callee (e.g. a macro) — stay quiet to avoid noise
 
 			String returnType = returnTypeText(callee);
-			if (returnType == null || returnType.equals("void") || isMayDiscard(callee)) return null;
+			if (returnType == null || returnType.equals("void") || C3Callees.isMayDiscard(callee)) return null;
 			return new Discarded(returnType);
 		}
 
@@ -133,19 +130,6 @@ public final class C3UnusedExpressionResultInspection extends LocalInspectionToo
 		if (optionalType == null) return null;
 		String text = optionalType.getText().trim();
 		return text.isEmpty() ? null : text;
-	}
-
-	private static boolean isMayDiscard(@NotNull C3FuncDef funcDef)
-	{
-		C3Attributes attributes = funcDef.getAttributes();
-		if (attributes == null) return false;
-		for (C3Attribute attribute : attributes.getAttributeList())
-		{
-			String text = attribute.getAttributeName().getText();
-			String simple = text.substring(text.lastIndexOf(':') + 1).replace("@", "").toLowerCase(Locale.ROOT);
-			if (simple.equals("maydiscard")) return true;
-		}
-		return false;
 	}
 
 	private record Discarded(@Nullable String typeText)

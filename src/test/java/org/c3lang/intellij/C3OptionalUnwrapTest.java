@@ -16,7 +16,13 @@ public class C3OptionalUnwrapTest extends C3TestCase
 		+ "struct Socket { int fd; }\n"
 		+ "fn usz? Socket.read(&self, char[] buffer) { return buffer.len; }\n"
 		+ "typedef TcpSocket = inline Socket;\n"
-		+ "macro usz? maybe(usz x) => x;\n";
+		+ "macro usz? maybe(usz x) => x;\n"
+		+ "fn usz ident(usz v) => v;\n"
+		+ "fn void takes(usz v) {}\n"
+		+ "fn void? lock() @maydiscard {}\n"
+		+ "macro usz typed(usz x) => x;\n"
+		+ "macro untyped(x) => x;\n"
+		+ "macro usz Socket.scaled(&self, usz x) => x;\n";
 
 	private List<String> errors(String body)
 	{
@@ -24,7 +30,7 @@ public class C3OptionalUnwrapTest extends C3TestCase
 		myFixture.configureByText("app.c3", HEAD + body);
 		List<String> errors = myFixture.doHighlighting(HighlightSeverity.ERROR).stream()
 			.map(HighlightInfo::getDescription)
-			.filter(d -> d != null && d.startsWith("Optional '"))
+			.filter(d -> d != null && (d.startsWith("Optional '") || d.startsWith("The call returns") || d.startsWith("The result of this call")))
 			.toList();
 		System.out.println("[TEST] errors = " + errors);
 		return errors;
@@ -115,5 +121,74 @@ public class C3OptionalUnwrapTest extends C3TestCase
 	{
 		List<String> errors = errors("fn usz f(char[] buffer)\n{\n    usz v = unknown_fn(buffer);\n    return v;\n}\n");
 		assertEquals(errors.toString(), 0, errors.size());
+	}
+
+	public void testOptionalArgumentMakesAFunctionCallOptional()
+	{
+		List<String> errors = errors("fn usz f()\n{\n    usz x = ident(maybe(1));\n    return x;\n}\n");
+		assertEquals(errors.toString(), 1, errors.size());
+		assertEquals("Optional 'usz?' cannot be assigned to non-optional 'usz'", errors.get(0));
+		applyPropagate(
+			"fn usz f()\n{\n    usz x = ide<caret>nt(maybe(1));\n    return x;\n}\n",
+			"fn usz? f()\n{\n    usz x = ident(maybe(1))!;\n    return x;\n}\n");
+	}
+
+	public void testNestedOptionalArgumentPropagatesOutward()
+	{
+		List<String> errors = errors("fn usz f()\n{\n    usz z = ident(ident(maybe(1)));\n    return z;\n}\n");
+		assertEquals(errors.toString(), 1, errors.size());
+	}
+
+	public void testDiscardedCallWithOptionalArgumentIsError()
+	{
+		List<String> errors = errors("fn void f()\n{\n    takes(maybe(1));\n}\n");
+		assertEquals(errors.toString(), List.of("The result of this call is optional due to its argument(s) and cannot be discarded"), errors);
+		applyPropagate(
+			"fn void f()\n{\n    tak<caret>es(maybe(1));\n}\n",
+			"fn void? f()\n{\n    takes(maybe(1))!;\n}\n");
+	}
+
+	public void testDiscardedOptionalResultIsErrorUnlessMayDiscard()
+	{
+		List<String> errors = errors("fn void f()\n{\n    maybe(1);\n    lock();\n}\n");
+		assertEquals(errors.toString(), List.of("The call returns 'usz?', which is optional and must be handled"), errors);
+	}
+
+	public void testHandledCallsWithOptionalArgumentsAreFine()
+	{
+		List<String> errors = errors("fn void? f()\n{\n"
+			+ "    takes(maybe(1))!;\n"
+			+ "    (void)takes(maybe(1));\n"
+			+ "    takes(maybe(1)!);\n"
+			+ "    usz x = ident(maybe(1))!;\n"
+			+ "}\n");
+		assertEquals(errors.toString(), 0, errors.size());
+	}
+
+	public void testOptionalArgumentToTypedMacroParameterIsError()
+	{
+		List<String> errors = errors("fn usz f()\n{\n    usz b = typed(maybe(1));\n    return b;\n}\n");
+		assertEquals(errors.toString(), List.of("Optional 'usz?' cannot be passed to parameter 'x' of type 'usz'"), errors);
+		applyPropagate(
+			"fn usz f()\n{\n    usz b = typed(may<caret>be(1));\n    return b;\n}\n",
+			"fn usz? f()\n{\n    usz b = typed(maybe(1)!);\n    return b;\n}\n");
+	}
+
+	public void testNamedOptionalArgumentToTypedMacroParameterIsError()
+	{
+		List<String> errors = errors("fn usz f()\n{\n    usz b = typed(x: maybe(1));\n    return b;\n}\n");
+		assertEquals(errors.toString(), 1, errors.size());
+	}
+
+	public void testOptionalArgumentToUntypedMacroParameterIsQuiet()
+	{
+		List<String> errors = errors("fn usz? f()\n{\n    usz a = untyped(maybe(1))!;\n    return a;\n}\n");
+		assertEquals(errors.toString(), 0, errors.size());
+	}
+
+	public void testMethodMacroMapsArgumentsPastSelf()
+	{
+		List<String> errors = errors("fn usz f(Socket* s)\n{\n    usz y = s.scaled(maybe(1));\n    return y;\n}\n");
+		assertEquals(errors.toString(), List.of("Optional 'usz?' cannot be passed to parameter 'x' of type 'usz'"), errors);
 	}
 }
