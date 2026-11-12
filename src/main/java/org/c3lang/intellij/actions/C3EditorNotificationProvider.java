@@ -7,6 +7,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.EditorNotificationPanel;
 import com.intellij.ui.EditorNotificationProvider;
 import org.c3lang.intellij.C3SettingsState;
+import org.c3lang.intellij.C3StdlibRoots;
 import org.c3lang.intellij.settings.C3Configurable;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,12 +19,12 @@ public class C3EditorNotificationProvider implements EditorNotificationProvider
 	@Override
 	public Function<? super FileEditor, ? extends JComponent> collectNotificationData(@NotNull Project project, @NotNull VirtualFile file)
 	{
-		C3SettingsState settings = C3SettingsState.getInstance();
-		if (settings.stdlibPath != null && !settings.stdlibPath.isEmpty()) return null;
+		if (!C3SettingsState.stdlibRootFor(project).isEmpty()) return null;
 
 		return fileEditor -> {
 			EditorNotificationPanel panel = new EditorNotificationPanel(fileEditor, EditorNotificationPanel.Status.Error);
 			panel.setText("The C3 standard library path is not set.");
+			panel.createActionLabel("Detect", () -> C3StdlibRoots.detectInBackground(project));
 			panel.createActionLabel("Setup", () -> ShowSettingsUtil.getInstance().showSettingsDialog(project, C3Configurable.class));
 			return panel;
 		};

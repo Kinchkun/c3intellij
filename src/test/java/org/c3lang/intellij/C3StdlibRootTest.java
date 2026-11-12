@@ -27,6 +27,14 @@ public class C3StdlibRootTest
 	}
 
 	@Test
+	public void libraryRootAsTheCompilerNamesItIsNarrowedToStd() throws Exception
+	{
+		Path lib = Files.createTempDirectory("lib");
+		Files.createDirectories(lib.resolve("std"));
+		assertEquals(lib.resolve("std").toString(), rootFor(lib.toString()));
+	}
+
+	@Test
 	public void stdDirectoryIsKeptAsIs() throws Exception
 	{
 		Path std = Files.createTempDirectory("std");

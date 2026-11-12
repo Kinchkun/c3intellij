@@ -5,15 +5,19 @@ import com.intellij.openapi.startup.ProjectActivity;
 import kotlin.Unit;
 import kotlin.coroutines.Continuation;
 import org.c3lang.intellij.C3SettingsState;
+import org.c3lang.intellij.C3StdlibLocator;
+import org.c3lang.intellij.C3StdlibRoots;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.io.File;
+import java.nio.file.Path;
 
+/**
+ * Detects the standard library on project open when {@link C3SettingsState#needsStdlibDetection()
+ * it is needed}: nothing configured, the configured directory gone, or the compiler setting changed
+ * since the path was detected. Runs on a background thread.
+ */
 public class StartupAction implements ProjectActivity
 {
     @Nullable
@@ -21,51 +25,25 @@ public class StartupAction implements ProjectActivity
     public Object execute(@NotNull Project project, @NotNull Continuation<? super Unit> continuation)
     {
         C3SettingsState settings = C3SettingsState.getInstance();
-        if (settings.stdlibPath != null && !settings.stdlibPath.isEmpty()) return Unit.INSTANCE;
+        if (!settings.needsStdlibDetection()) return Unit.INSTANCE;
 
-        try
+        Path detected = C3StdlibLocator.detect(settings.sdk == null ? "" : settings.sdk);
+        if (detected == null)
         {
-            Process process = Runtime.getRuntime().exec(new String[]{"c3c", "compile", "--build-env"});
-            process.waitFor();
-
-            String result = readText(process.getInputStream());
-            settings.stdlibPath = findStdlibPath(result);
+            // A stale path indexes nothing; clearing it brings up the "not set" banner with its
+            // Setup and Detect actions.
+            if (settings.stdlibPath != null && !settings.stdlibPath.isBlank() && !new File(settings.stdlibPath).isDirectory())
+            {
+                settings.setManualStdlib("");
+                C3StdlibRoots.refresh(project);
+            }
+            return Unit.INSTANCE;
         }
-        catch (Exception ignored)
-        {
-            settings.stdlibPath = "";
-        }
 
+        String path = detected.toString();
+        boolean unchanged = path.equals(settings.stdlibPath);
+        settings.setDetectedStdlib(path);
+        if (!unchanged) C3StdlibRoots.refresh(project);
         return Unit.INSTANCE;
-    }
-
-    @Nullable
-    private static String findStdlibPath(@NotNull String result)
-    {
-        for (String line : result.split("\\R"))
-        {
-            String trimmed = line.trim();
-            if (trimmed.startsWith("Stdlib"))
-            {
-                int colon = trimmed.indexOf(':');
-                return colon >= 0 ? trimmed.substring(colon + 1).trim() : "";
-            }
-        }
-        return null;
-    }
-
-    @NotNull
-    private static String readText(@NotNull InputStream inputStream) throws IOException
-    {
-        StringBuilder result = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)))
-        {
-            String line;
-            while ((line = reader.readLine()) != null)
-            {
-                result.append(line).append('\n');
-            }
-        }
-        return result.toString();
     }
 }

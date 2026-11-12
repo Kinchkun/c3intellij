@@ -26,9 +26,12 @@ public class C3SdkType extends SdkType {
         return null;
     }
 
+    /** A directory holding a {@code c3c} executable with a standard library where the compiler would look for it (also Homebrew's {@code ../lib/c3/std}). */
     public static boolean isSdkHome(@NotNull String s) {
-        if (!Files.exists(Paths.get(s, "c3c.exe")) && !Files.exists(Paths.get(s, "c3c"))) return false;
-        return Files.exists(Paths.get(s, "lib", "std")) || Files.exists(Paths.get(s, "..", "lib", "std"));
+        Path executable = Paths.get(s, "c3c.exe");
+        if (!Files.exists(executable)) executable = Paths.get(s, "c3c");
+        if (!Files.exists(executable)) return false;
+        return C3StdlibLocator.nearExecutable(executable) != null;
     }
 
     @Override
