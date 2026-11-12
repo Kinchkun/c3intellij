@@ -6,6 +6,7 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
+import org.c3lang.intellij.psi.C3AttributeNames;
 import org.c3lang.intellij.psi.C3FaultDefinition;
 import org.c3lang.intellij.psi.C3Types;
 import org.c3lang.intellij.psi.FullyQualifiedName;
@@ -77,5 +78,12 @@ public abstract class C3FaultDefinitionMixinImpl extends C3StubBasedPsiElementBa
 	{
 		C3FaultDefinitionStub s = getGreenStub();
 		return s != null ? s.getName() : FullyQualifiedName.Companion.from(this, ModuleName.Companion.from(this));
+	}
+
+	@Override
+	public boolean isBuiltin()
+	{
+		C3FaultDefinitionStub s = getGreenStub();
+		return s != null ? s.isBuiltin() : C3AttributeNames.has(getAttributes(), "builtin");
 	}
 }

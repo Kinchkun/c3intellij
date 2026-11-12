@@ -30,6 +30,9 @@ public interface C3ModuleNamePsiElement extends C3PsiElement
 	{
 		if (isSameModule(element) || element.getModuleName() == null)
 			return element.getFqName().getName();
+		// `@builtin` declarations (`abort`, `NOT_FOUND`, ...) need no module path anywhere.
+		if (element instanceof C3BuiltinPsiElement builtin && builtin.isBuiltin())
+			return element.getFqName().getName();
 
 		if (imported != null)
 		{

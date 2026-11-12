@@ -5,6 +5,7 @@ import com.intellij.psi.stubs.StubBase;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.stubs.StubInputStream;
 import com.intellij.psi.stubs.StubOutputStream;
+import org.c3lang.intellij.psi.C3AttributeNames;
 import org.c3lang.intellij.psi.C3FuncDef;
 import org.c3lang.intellij.psi.FullyQualifiedName;
 import org.c3lang.intellij.psi.ModuleName;
@@ -42,6 +43,7 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 	private final @NotNull FullyQualifiedName fqName;
 	private final @Nullable ShortType returnType;
 	private final @NotNull List<ParamType> parameterTypes;
+	private final boolean builtin;
 
 	public C3FuncDefStub(
 		@Nullable StubElement<?> parent,
@@ -51,7 +53,8 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 		@Nullable ShortType type,
 		@NotNull FullyQualifiedName fqName,
 		@Nullable ShortType returnType,
-		@NotNull List<ParamType> parameterTypes)
+		@NotNull List<ParamType> parameterTypes,
+		boolean builtin)
 	{
 		super(parent, elementType);
 		this.sourceFileName = sourceFileName;
@@ -60,6 +63,7 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 		this.fqName = fqName;
 		this.returnType = returnType;
 		this.parameterTypes = parameterTypes;
+		this.builtin = builtin;
 	}
 
 	public C3FuncDefStub(
@@ -82,7 +86,8 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 			ParamType.Companion.toParamTypeList(
 				psi.getFnParameterList().getParameterList() != null
 					? psi.getFnParameterList().getParameterList().getParamDeclList()
-					: null)
+					: null),
+			C3AttributeNames.has(psi.getAttributes(), "builtin")
 		);
 	}
 
@@ -99,7 +104,8 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 			readShortType(dataStream),
 			FullyQualifiedName.Companion.parse(dataStream.readUTFFast()),
 			readShortType(dataStream),
-			ParamType.Companion.deserialize(dataStream)
+			ParamType.Companion.deserialize(dataStream),
+			dataStream.readBoolean()
 		);
 	}
 
@@ -145,6 +151,12 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 		return parameterTypes;
 	}
 
+	/** Declared {@code @builtin}: callable without a module path. */
+	public boolean isBuiltin()
+	{
+		return builtin;
+	}
+
 	/** Writes the fields out in the same order the stream-reading constructor reads them back. */
 	public void serialize(@NotNull StubOutputStream dataStream) throws IOException
 	{
@@ -154,5 +166,6 @@ public class C3FuncDefStub extends StubBase<C3FuncDef>
 		dataStream.writeUTFFast(fqName.getFullName());
 		StubStreamExtensions.writeNullableUTFFast(dataStream, returnType != null ? returnType.getFullName() : null);
 		ParamType.Companion.serialize(dataStream, parameterTypes);
+		dataStream.writeBoolean(builtin);
 	}
 }

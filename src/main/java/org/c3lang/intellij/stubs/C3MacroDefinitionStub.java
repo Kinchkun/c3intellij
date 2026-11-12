@@ -5,6 +5,7 @@ import com.intellij.psi.stubs.StubBase;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.stubs.StubInputStream;
 import com.intellij.psi.stubs.StubOutputStream;
+import org.c3lang.intellij.psi.C3AttributeNames;
 import org.c3lang.intellij.psi.C3MacroDefinition;
 import org.c3lang.intellij.psi.FullyQualifiedName;
 import org.c3lang.intellij.psi.ModuleName;
@@ -24,6 +25,7 @@ public class C3MacroDefinitionStub extends StubBase<C3MacroDefinition>
 	private final @NotNull FullyQualifiedName fqName;
 	private final @Nullable ShortType returnType;
 	private final @NotNull List<ParamType> parameterTypes;
+	private final boolean builtin;
 
 	public C3MacroDefinitionStub(
 		@Nullable StubElement<?> parent,
@@ -33,7 +35,8 @@ public class C3MacroDefinitionStub extends StubBase<C3MacroDefinition>
 		@Nullable ShortType type,
 		@NotNull FullyQualifiedName fqName,
 		@Nullable ShortType returnType,
-		@NotNull List<ParamType> parameterTypes)
+		@NotNull List<ParamType> parameterTypes,
+		boolean builtin)
 	{
 		super(parent, elementType);
 		this.sourceFileName = sourceFileName;
@@ -42,6 +45,7 @@ public class C3MacroDefinitionStub extends StubBase<C3MacroDefinition>
 		this.fqName = fqName;
 		this.returnType = returnType;
 		this.parameterTypes = parameterTypes;
+		this.builtin = builtin;
 	}
 
 	public C3MacroDefinitionStub(
@@ -64,7 +68,8 @@ public class C3MacroDefinitionStub extends StubBase<C3MacroDefinition>
 			ParamType.Companion.toParamTypeList(
 				psi.getMacroParams().getParameterList() != null
 					? psi.getMacroParams().getParameterList().getParamDeclList()
-					: null)
+					: null),
+			C3AttributeNames.has(psi.getAttributes(), "builtin")
 		);
 	}
 
@@ -81,7 +86,8 @@ public class C3MacroDefinitionStub extends StubBase<C3MacroDefinition>
 			readShortType(dataStream),
 			FullyQualifiedName.Companion.parse(dataStream.readUTFFast()),
 			readShortType(dataStream),
-			ParamType.Companion.deserialize(dataStream)
+			ParamType.Companion.deserialize(dataStream),
+			dataStream.readBoolean()
 		);
 	}
 
@@ -127,6 +133,12 @@ public class C3MacroDefinitionStub extends StubBase<C3MacroDefinition>
 		return parameterTypes;
 	}
 
+	/** Declared {@code @builtin}: callable without a module path. */
+	public boolean isBuiltin()
+	{
+		return builtin;
+	}
+
 	public void serialize(@NotNull StubOutputStream dataStream) throws IOException
 	{
 		dataStream.writeUTFFast(sourceFileName);
@@ -135,5 +147,6 @@ public class C3MacroDefinitionStub extends StubBase<C3MacroDefinition>
 		dataStream.writeUTFFast(fqName.getFullName());
 		StubStreamExtensions.writeNullableUTFFast(dataStream, returnType != null ? returnType.getFullName() : null);
 		ParamType.Companion.serialize(dataStream, parameterTypes);
+		dataStream.writeBoolean(builtin);
 	}
 }

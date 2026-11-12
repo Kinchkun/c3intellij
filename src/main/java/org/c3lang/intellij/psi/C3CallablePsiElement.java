@@ -4,7 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
-public interface C3CallablePsiElement extends C3FullyQualifiedNamePsiElement
+public interface C3CallablePsiElement extends C3FullyQualifiedNamePsiElement, C3BuiltinPsiElement
 {
 	@NotNull String getSourceFileName();
 	@Nullable ShortType getType();

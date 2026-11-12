@@ -5,6 +5,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.tree.IElementType;
+import org.c3lang.intellij.psi.C3AttributeNames;
 import org.c3lang.intellij.psi.*;
 import org.c3lang.intellij.stubs.C3FuncDefStub;
 import org.jetbrains.annotations.NotNull;
@@ -135,5 +136,12 @@ public abstract class C3FuncDefMixinImpl extends C3StubBasedPsiElementBase<C3Fun
 		C3ParameterList paramList = getFnParameterList().getParameterList();
 		List<C3ParamDecl> paramDecls = paramList != null ? paramList.getParamDeclList() : null;
 		return ParamType.Companion.toParamTypeList(paramDecls);
+	}
+
+	@Override
+	public boolean isBuiltin()
+	{
+		C3FuncDefStub s = getGreenStub();
+		return s != null ? s.isBuiltin() : C3AttributeNames.has(getAttributes(), "builtin");
 	}
 }
