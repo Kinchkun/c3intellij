@@ -31,4 +31,25 @@ public class C3DuplicateVariableTest extends C3TestCase
 	{
 		assertEquals(0, duplicateErrors("    int a = 1;\n    {\n        int a = 2;\n    }\n"));
 	}
+
+	/** Each `case` (and `default`) body is its own scope, as in the compiler, so cases may reuse a name. */
+	public void testEachSwitchCaseIsItsOwnScope()
+	{
+		assertEquals(0, duplicateErrors("    int k = 1;\n    switch (k) {\n"
+			+ "        case 1:\n            String value = \"a\";\n"
+			+ "        case 2:\n            int value = 2;\n"
+			+ "        default:\n            int value = 3;\n    }\n"));
+	}
+
+	public void testDuplicateWithinOneCaseIsError()
+	{
+		assertEquals(1, duplicateErrors("    int k = 1;\n    switch (k) {\n"
+			+ "        case 1:\n            int value = 1;\n            int value = 2;\n    }\n"));
+	}
+
+	public void testCaseDeclarationShadowingAnOuterOneIsAllowed()
+	{
+		assertEquals(0, duplicateErrors("    int value = 0;\n    int k = 1;\n    switch (k) {\n"
+			+ "        case 1:\n            int value = 1;\n    }\n"));
+	}
 }

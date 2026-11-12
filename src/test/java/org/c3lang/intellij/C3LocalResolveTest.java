@@ -77,4 +77,13 @@ public class C3LocalResolveTest extends C3TestCase
 		assertTrue("expected the KeyboardEvent.key member, got " + resolved, resolved instanceof C3StructMemberDeclaration);
 		assertEquals("uint key;", resolved.getText());
 	}
+
+	/** A usage inside a `case` resolves to that case's own declaration, not to a same-named one in an earlier case. */
+	public void testUsageInACaseResolvesToThatCasesDeclaration()
+	{
+		String body = "    int k = 1;\n    switch (k) {\n"
+			+ "        case 1:\n            String value = \"a\";\n            int n = value.len;\n"
+			+ "        case 2:\n            int value = 2;\n            int twice = va<caret>lue * 2;\n    }\n";
+		assertLocalAt(resolveInBody(body), "value = 2", body);
+	}
 }
