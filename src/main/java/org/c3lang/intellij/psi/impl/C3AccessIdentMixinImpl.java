@@ -6,6 +6,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
+import org.c3lang.intellij.index.C3InlineTypes;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.index.StructService;
 import org.c3lang.intellij.psi.*;
@@ -136,7 +137,15 @@ public abstract class C3AccessIdentMixinImpl extends C3PsiNamedElementImpl imple
 			for (int i = 0; i < seq.idents.size(); i++)
 			{
 				String ident = seq.idents.get(i);
-				structMembers = StructService.INSTANCE.getStructMembers(query + "." + ident, myElement.getProject());
+				// The member may be declared on a type that `query` inlines (`typedef A = inline B;`,
+				// `struct A { inline B b; }`): look on the type itself first, then on those.
+				List<String> candidateTypes = C3InlineTypes.withInlineParents(query, myElement.getProject());
+				structMembers = Collections.emptyList();
+				for (String candidateType : candidateTypes)
+				{
+					structMembers = StructService.INSTANCE.getStructMembers(candidateType + "." + ident, myElement.getProject());
+					if (!structMembers.isEmpty()) break;
+				}
 				C3StructMemberDeclaration member = structMembers.size() == 1 ? structMembers.get(0) : null;
 				FullyQualifiedName nextType = member != null ? member.findTypeName() : null;
 				if (nextType == null)
@@ -146,8 +155,11 @@ public abstract class C3AccessIdentMixinImpl extends C3PsiNamedElementImpl imple
 					// ident against the methods declared on the current type.
 					if (i == seq.idents.size() - 1)
 					{
-						List<C3PsiElement> methods = resolveMethods(query, ident, myElement);
-						if (!methods.isEmpty()) return methods;
+						for (String candidateType : candidateTypes)
+						{
+							List<C3PsiElement> methods = resolveMethods(candidateType, ident, myElement);
+							if (!methods.isEmpty()) return methods;
+						}
 					}
 					return Collections.emptyList();
 				}

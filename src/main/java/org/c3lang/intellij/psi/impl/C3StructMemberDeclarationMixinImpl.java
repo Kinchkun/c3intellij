@@ -77,7 +77,7 @@ public abstract class C3StructMemberDeclarationMixinImpl
 		else
 		{
 			C3IdentifierList identList = getIdentifierList();
-			PsiElement first = identList != null ? identList.getFirstChild() : null;
+			PsiElement first = identList != null ? identList.getFirstChild() : inlineMemberIdent();
 			return first instanceof LeafPsiElement ? (LeafPsiElement) first : null;
 		}
 	}
@@ -136,6 +136,14 @@ public abstract class C3StructMemberDeclarationMixinImpl
 		return String.join(".", parts);
 	}
 
+	/** The name of an `inline Type name;` member: a direct IDENT child, not an identifier list. */
+	private @Nullable PsiElement inlineMemberIdent()
+	{
+		if (getNode().findChildByType(C3Types.KW_INLINE) == null) return null;
+		ASTNode identNode = getNode().findChildByType(C3Types.IDENT);
+		return identNode != null ? identNode.getPsi() : null;
+	}
+
 	private @Nullable String collectStructPath()
 	{
 		String name;
@@ -147,7 +155,8 @@ public abstract class C3StructMemberDeclarationMixinImpl
 		else
 		{
 			C3IdentifierList identList = getIdentifierList();
-			name = identList != null ? identList.getText() : null;
+			PsiElement inlineIdent = inlineMemberIdent();
+			name = identList != null ? identList.getText() : inlineIdent != null ? inlineIdent.getText() : null;
 		}
 
 		C3StructMemberDeclaration parentMember =

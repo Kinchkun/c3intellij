@@ -171,16 +171,31 @@ public class C3LineMarkerProvider implements LineMarkerProvider
 		return relative != null ? C3ProjectManifest.findTargetForFile(projectDir.getPath(), relative, type, testSources) : null;
 	}
 
-	/** Runs the tests whose {@code module::name} contains {@code filter} ({@code c3c test --test-filter}). */
+	/**
+	 * Runs the tests whose {@code module::name} contains {@code filter}. A {@code project.json} target
+	 * whose {@code "test-sources"} contain the file runs through {@code c3c test <target>}, also for a
+	 * test inside a library ({@code lib/http_client.c3l/test}): the target carries the dependencies and
+	 * settings. Only a library test that no target claims is compiled directly ({@code c3c compile-test}).
+	 */
 	private static void runTests(Project project, @Nullable VirtualFile file, String name, String filter)
 	{
-		VirtualFile library = C3Projects.findLibraryDir(file);
-		if (library != null && C3TargetRunner.runLibraryTests(project, library, filter, name)) return;
-
 		VirtualFile projectDir = projectDirOf(project, file);
+		String target = projectDir != null ? testTargetOf(projectDir, file) : null;
+
+		if (target == null)
+		{
+			VirtualFile library = C3Projects.findLibraryDir(file);
+			if (library != null && C3TargetRunner.runLibraryTests(project, library, filter, name)) return;
+		}
+
 		if (projectDir == null) return;
-		C3TargetRunner.runTests(project, projectDir, targetOf(projectDir, file, null, true), filter, name,
-			DefaultRunExecutor.getRunExecutorInstance());
+		C3TargetRunner.runTests(project, projectDir, target, filter, name, DefaultRunExecutor.getRunExecutorInstance());
+	}
+
+	/** The {@code project.json} target whose {@code "test-sources"} contain {@code file}, or null. */
+	static @Nullable String testTargetOf(@NotNull VirtualFile projectDir, @Nullable VirtualFile file)
+	{
+		return targetOf(projectDir, file, null, true);
 	}
 
 	private static void runScratch(Project project, VirtualFile file)

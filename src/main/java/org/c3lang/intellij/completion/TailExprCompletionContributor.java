@@ -15,6 +15,7 @@ import com.intellij.icons.AllIcons;
 import com.intellij.util.ProcessingContext;
 import kotlin.Pair;
 import org.c3lang.intellij.C3Icons;
+import org.c3lang.intellij.index.C3InlineTypes;
 import org.c3lang.intellij.index.NameIndexService;
 import org.c3lang.intellij.index.StructService;
 import org.c3lang.intellij.intention.C3Interfaces;
@@ -99,23 +100,28 @@ public final class TailExprCompletionContributor extends CompletionProvider<Comp
 		String containerType =
 			StructService.INSTANCE.resolveContainerType(rootType, idents, project);
 		String typeSimpleName = FullyQualifiedName.parse(containerType).getName();
-		String namePrefix = typeSimpleName + ".";
 
 		C3ModuleDefinition module = lookupTarget.getModuleDefinition();
 
+		// The type's own methods first, then those of the types it inlines
+		// (`typedef TcpSocket = inline Socket;`); a method of the same name on the type itself wins.
 		Set<String> seen = new HashSet<>();
-		for (C3FullyQualifiedNamePsiElement el : NameIndexService.INSTANCE.findByNamePrefix(namePrefix, project))
+		for (String methodOwner : C3InlineTypes.withInlineParents(containerType, project))
 		{
-			if (!(el instanceof C3CallablePsiElement callable) || callable.getType() == null) continue;
-			if (!module.containsImportOrSameModule(el)) continue;
+			String namePrefix = FullyQualifiedName.parse(methodOwner).getName() + ".";
+			for (C3FullyQualifiedNamePsiElement el : NameIndexService.INSTANCE.findByNamePrefix(namePrefix, project))
+			{
+				if (!(el instanceof C3CallablePsiElement callable) || callable.getType() == null) continue;
+				if (!module.containsImportOrSameModule(el)) continue;
 
-			String fullName = el.getFqName().getName();
-			String methodName = fullName.substring(namePrefix.length());
-			// Only direct methods of this type, not methods on a nested member type.
-			if (methodName.isEmpty() || methodName.contains(".")) continue;
-			if (!seen.add(methodName)) continue;
+				String fullName = el.getFqName().getName();
+				String methodName = fullName.substring(namePrefix.length());
+				// Only direct methods of this type, not methods on a nested member type.
+				if (methodName.isEmpty() || methodName.contains(".")) continue;
+				if (!seen.add(methodName)) continue;
 
-			result.addElement(methodLookupElement(callable, methodName));
+				result.addElement(methodLookupElement(callable, methodName));
+			}
 		}
 
 		// Interface methods are declared as bare func_defs inside the interface body, so they have
