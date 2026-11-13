@@ -3,6 +3,7 @@ package org.c3lang.intellij.intention;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.util.PsiTreeUtil;
+import org.c3lang.intellij.navigation.C3AtMacroGotoDeclarationHandler;
 import org.c3lang.intellij.psi.C3AccessIdent;
 import org.c3lang.intellij.psi.C3Attribute;
 import org.c3lang.intellij.psi.C3Attributes;
@@ -11,21 +12,24 @@ import org.c3lang.intellij.psi.C3Expr;
 import org.c3lang.intellij.psi.C3FuncDef;
 import org.c3lang.intellij.psi.C3MacroDefinition;
 import org.c3lang.intellij.psi.C3OptionalType;
+import org.c3lang.intellij.psi.C3PathAtIdentExpr;
 import org.c3lang.intellij.psi.C3PathIdent;
+import org.c3lang.intellij.psi.C3PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Locale;
 
 /** Resolves what a call invokes, and reads the declared return type of a function or macro. */
-final class C3Callees
+public final class C3Callees
 {
 	private C3Callees()
 	{
 	}
 
 	/** The function ({@link C3FuncDef}) or macro ({@link C3MacroDefinition}) invoked by {@code call}, or null. */
-	static @Nullable PsiElement resolve(@NotNull C3CallExpr call)
+	public static @Nullable PsiElement resolve(@NotNull C3CallExpr call)
 	{
 		C3Expr callee = call.getExpr();
 		if (callee == null) return null;
@@ -48,6 +52,20 @@ final class C3Callees
 			: ((C3PathIdent) nameElement).getReference();
 		PsiElement resolved = reference != null ? reference.resolve() : null;
 		return resolved instanceof C3FuncDef || resolved instanceof C3MacroDefinition ? resolved : null;
+	}
+
+	/**
+	 * As {@link #resolve}, and also the macro an @-macro call invokes ({@code @ok(...)},
+	 * {@code mem::@pool(...)}); such a name carries no reference of its own.
+	 */
+	static @Nullable PsiElement resolveWithAtMacros(@NotNull C3CallExpr call)
+	{
+		if (call.getExpr() instanceof C3PathAtIdentExpr atMacro)
+		{
+			List<C3PsiElement> targets = C3AtMacroGotoDeclarationHandler.resolve(atMacro.getPathAtIdent());
+			return targets.size() == 1 && targets.get(0) instanceof C3MacroDefinition macro ? macro : null;
+		}
+		return resolve(call);
 	}
 
 	/** The written return type of a function or macro; null for a macro without one or any other element. */

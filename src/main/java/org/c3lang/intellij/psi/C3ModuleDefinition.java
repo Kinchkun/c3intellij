@@ -1,5 +1,6 @@
 package org.c3lang.intellij.psi;
 
+import org.c3lang.intellij.index.C3TypeAliases;
 import com.intellij.openapi.project.DumbService;
 import org.c3lang.intellij.index.NameIndexService;
 import org.jetbrains.annotations.NotNull;
@@ -56,9 +57,18 @@ public interface C3ModuleDefinition extends C3ModuleNamePsiElement
 	 * unqualified type in this module. When this module doesn't declare it, use the index to find the
 	 * visible module (an import, or the auto-imported {@code std::core}) that does — e.g.
 	 * {@code ParsedArgs} declared in an imported {@code mystd::args}. Returns {@code fqn} unchanged
-	 * while indexing, when the type is declared here, or when the match is ambiguous.
+	 * while indexing, when the type is declared here, or when the match is ambiguous. A type alias
+	 * is replaced by the type it stands for.
 	 */
 	default @Nullable FullyQualifiedName resolveDeclaringModule(@Nullable FullyQualifiedName fqn)
+	{
+		FullyQualifiedName declared = findDeclaringModule(fqn);
+		// `alias HttpHeaders = HashMap { String, String };`: a HttpHeaders value is a HashMap.
+		return declared != null ? C3TypeAliases.resolve(declared, getProject()) : null;
+	}
+
+	/** As {@link #resolveDeclaringModule}, without following type aliases: the name as it is declared. */
+	default @Nullable FullyQualifiedName findDeclaringModule(@Nullable FullyQualifiedName fqn)
 	{
 		if (fqn == null || !isSameModule(fqn.getModule())) return fqn;
 		if (DumbService.isDumb(getProject())) return fqn;

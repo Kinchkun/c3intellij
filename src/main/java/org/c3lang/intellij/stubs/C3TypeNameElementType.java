@@ -5,6 +5,7 @@ import com.intellij.psi.stubs.IndexSink;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.stubs.StubInputStream;
 import com.intellij.psi.stubs.StubOutputStream;
+import org.c3lang.intellij.index.InterfaceImplementationIndex;
 import org.c3lang.intellij.index.NameIndex;
 import org.c3lang.intellij.index.TypeIndex;
 import org.c3lang.intellij.psi.C3StubElementType;
@@ -52,6 +53,10 @@ public class C3TypeNameElementType extends C3StubElementType<C3TypeNameStub, C3T
 	{
 		sink.occurrence(NameIndex.KEY, stub.getFqName().getFullName());
 		sink.occurrence(TypeIndex.KEY, stub.getFqName().getFullName());
+		for (String interfaceName : stub.getImplementedInterfaces())
+		{
+			sink.occurrence(InterfaceImplementationIndex.KEY, interfaceName);
+		}
 	}
 
 	@Override

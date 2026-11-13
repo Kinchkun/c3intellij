@@ -2,6 +2,7 @@ package org.c3lang.intellij.intention;
 
 import com.intellij.codeInspection.LocalInspectionTool;
 import com.intellij.codeInspection.LocalInspectionToolSession;
+import com.intellij.codeInspection.LocalQuickFix;
 import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.ProblemsHolder;
 import com.intellij.openapi.project.Project;
@@ -85,10 +86,12 @@ public final class C3UnresolvedMethodInspection extends LocalInspectionTool
 				// If it resolves to a field or a method, it's valid — nothing to report.
 				if (access.getReference().resolve() != null) return;
 
+				CreateMethodFix createMethod = CreateMethodFix.forAccess(access, receiverType);
 				holder.registerProblem(
 					nameElement,
 					"Cannot resolve '" + access.getNameIdent() + "' on type '" + receiverType.getName() + "'",
-					ProblemHighlightType.GENERIC_ERROR);
+					ProblemHighlightType.GENERIC_ERROR,
+					createMethod != null ? new LocalQuickFix[] { createMethod } : LocalQuickFix.EMPTY_ARRAY);
 			}
 		};
 	}

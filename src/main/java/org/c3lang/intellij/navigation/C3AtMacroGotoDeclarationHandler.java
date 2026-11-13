@@ -53,10 +53,23 @@ public final class C3AtMacroGotoDeclarationHandler implements GotoDeclarationHan
 			return null;
 		}
 		if (name.isEmpty()) return null;
-		C3ModuleDefinition moduleDefinition = ((C3PsiElement) sourceElement.getParent()).getModuleDefinition();
-		List<PsiElement> targets = new ArrayList<>();
+		List<C3PsiElement> targets = resolve(name, (C3PsiElement) sourceElement.getParent());
+		return targets.isEmpty() ? null : targets.toArray(PsiElement.EMPTY_ARRAY);
+	}
+
+	/** The declarations an {@code @name} reference such as {@code @pool} or {@code mem::@pool} names, closest module first. */
+	public static @NotNull List<C3PsiElement> resolve(@NotNull C3PathAtIdent atIdent)
+	{
+		String name = atIdentName(atIdent);
+		return name.isEmpty() ? List.of() : resolve(name, atIdent);
+	}
+
+	private static @NotNull List<C3PsiElement> resolve(@NotNull String name, @NotNull C3PsiElement context)
+	{
+		C3ModuleDefinition moduleDefinition = context.getModuleDefinition();
+		List<C3FullyQualifiedNamePsiElement> targets = new ArrayList<>();
 		for (C3FullyQualifiedNamePsiElement el :
-			NameIndexService.INSTANCE.findByNameEndsWith(name, sourceElement.getProject()))
+			NameIndexService.INSTANCE.findByNameEndsWith(name, context.getProject()))
 		{
 			if (el instanceof C3CallablePsiElement
 				&& name.equals(el.getFqName().getName())
@@ -65,10 +78,8 @@ public final class C3AtMacroGotoDeclarationHandler implements GotoDeclarationHan
 				targets.add(el);
 			}
 		}
-		if (targets.isEmpty()) return null;
-		List<C3PsiElement> closest = C3Candidates.closest(
-			targets.stream().map(C3FullyQualifiedNamePsiElement.class::cast).toList(), moduleDefinition);
-		return closest.toArray(PsiElement.EMPTY_ARRAY);
+		if (targets.isEmpty()) return List.of();
+		return List.copyOf(C3Candidates.closest(targets, moduleDefinition));
 	}
 
 	/** The {@code @name} part of the reference, without the optional module-path prefix. */

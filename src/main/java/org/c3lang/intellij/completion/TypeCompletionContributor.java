@@ -22,7 +22,6 @@ import org.c3lang.intellij.psi.C3ModuleDefinition;
 import org.c3lang.intellij.psi.C3PathIdent;
 import org.c3lang.intellij.psi.C3PsiElement;
 import org.c3lang.intellij.psi.C3Type;
-import org.c3lang.intellij.psi.C3TypeFullyQualifiedNamePsiElement;
 import org.c3lang.intellij.psi.C3TypeName;
 import org.c3lang.intellij.psi.C3Types;
 import org.c3lang.intellij.psi.FullyQualifiedName;
@@ -106,7 +105,9 @@ public final class TypeCompletionContributor extends CompletionProvider<Completi
                     GlobalSearchScope.allScope(project),
                     C3PsiElement.class))
             {
-                if (!(element instanceof C3TypeFullyQualifiedNamePsiElement typeName)) continue;
+                // Only type declarations: enum and constdef constants are indexed under the name of
+                // their type too, so `CurlRes` listed `curl::CurlResult` once per constant.
+                if (!(element instanceof C3TypeName typeName)) continue;
 
                 Icon icon = iconFor(typeName.getTypeEnum());
                 FullyQualifiedName fqName = typeName.getFqName();
@@ -119,9 +120,12 @@ public final class TypeCompletionContributor extends CompletionProvider<Completi
                     ))
                     .withPsiElement(typeName)
                     .withIcon(icon)
-                    .withPresentableText(Objects.equals(fqName.getModule(), moduleName)
-                        ? fqName.getName()
-                        : fqName.getFullName())
+                    // The bare name, as it is inserted; the module of a type from elsewhere is
+                    // shown beside it, which also tells same-named types apart.
+                    .withPresentableText(fqName.getName())
+                    .withTypeText(fqName.getModule() != null && !Objects.equals(fqName.getModule(), moduleName)
+                        ? fqName.getModule().getValue()
+                        : null)
                     .withInsertHandler(insertHandler);
 
                 result.addElement(lookupElementBuilder);

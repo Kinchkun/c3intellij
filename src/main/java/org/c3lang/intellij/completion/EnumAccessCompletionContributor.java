@@ -3,6 +3,11 @@ package org.c3lang.intellij.completion;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
 import com.intellij.codeInsight.completion.CompletionResultSet;
+import com.intellij.codeInsight.completion.CompletionSorter;
+import com.intellij.codeInsight.lookup.LookupElement;
+import com.intellij.codeInsight.lookup.LookupElementWeigher;
+import com.intellij.codeInsight.lookup.WeighingContext;
+import com.intellij.openapi.util.Key;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiNamedElement;
@@ -58,26 +63,44 @@ public final class EnumAccessCompletionContributor extends CompletionProvider<Co
 		PsiElement declaration = resolved.getParent();
 		if (declaration == null) return;
 
-		boolean added = false;
-		for (C3EnumConstant constant : PsiTreeUtil.findChildrenOfType(declaration, C3EnumConstant.class))
+		// Constants that start with what was typed come first, each group in declaration order:
+		// `CurlResult.O` offers `OK` (the first constant) before the `OBSOLETE…` entries, and
+		// `ABORTED_BY_CALLBACK`, which only contains an `O`, after them.
+		CompletionResultSet ordered = result.withRelevanceSorter(DECLARATION_ORDER);
+		int index = 0;
+		for (PsiNamedElement constant : PsiTreeUtil.findChildrenOfAnyType(declaration, C3EnumConstant.class, C3ConstdefConstant.class))
 		{
-			added |= addConstant(result, constant);
-		}
-		for (C3ConstdefConstant constant : PsiTreeUtil.findChildrenOfType(declaration, C3ConstdefConstant.class))
-		{
-			added |= addConstant(result, constant);
+			String name = constant.getName();
+			if (name == null || name.isEmpty()) continue;
+			LookupElement element = LookupElementBuilder.create(constant, name).withIcon(C3Icons.Nodes.ENUM);
+			element.putUserData(DECLARATION_INDEX, index++);
+			ordered.addElement(element);
 		}
 
 		// `EnumType.` is a closed position — nothing else (types, values) belongs here. Stop the chain
 		// so the dummy-induced "looks like a type" parse doesn't also pull in type completions.
-		if (added) result.stopHere();
+		if (index > 0) result.stopHere();
 	}
 
-	private static boolean addConstant(@NotNull CompletionResultSet result, @NotNull PsiNamedElement constant)
-	{
-		String name = constant.getName();
-		if (name == null || name.isEmpty()) return false;
-		result.addElement(LookupElementBuilder.create(constant, name).withIcon(C3Icons.Nodes.ENUM));
-		return true;
-	}
+	private static final Key<Integer> DECLARATION_INDEX = Key.create("c3.enum.constant.index");
+
+	private static final CompletionSorter DECLARATION_ORDER = CompletionSorter.emptySorter()
+		.weigh(new LookupElementWeigher("c3EnumStartMatch", false, true)
+		{
+			@Override
+			public @NotNull Comparable<?> weigh(@NotNull LookupElement element, @NotNull WeighingContext context)
+			{
+				String typed = context.itemPattern(element);
+				return element.getLookupString().regionMatches(true, 0, typed, 0, typed.length()) ? 0 : 1;
+			}
+		})
+		.weigh(new LookupElementWeigher("c3EnumDeclarationOrder")
+		{
+			@Override
+			public @NotNull Comparable<?> weigh(@NotNull LookupElement element)
+			{
+				Integer index = element.getUserData(DECLARATION_INDEX);
+				return index != null ? index : Integer.MAX_VALUE;
+			}
+		});
 }

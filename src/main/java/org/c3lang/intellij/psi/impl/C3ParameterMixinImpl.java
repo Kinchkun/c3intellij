@@ -3,6 +3,8 @@ package org.c3lang.intellij.psi.impl;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
+import com.intellij.psi.tree.IElementType;
+import org.c3lang.intellij.psi.C3Types;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.psi.C3FuncDef;
 import org.c3lang.intellij.psi.C3Parameter;
@@ -56,6 +58,13 @@ public abstract class C3ParameterMixinImpl extends C3PsiNamedElementImpl impleme
 	@Override
 	public @Nullable LeafPsiElement getNameIdentElement()
 	{
+		// The name token is not always the last child: `args...` ends in the ellipsis and
+		// `int x @unused` in an attribute.
+		for (PsiElement child = getLastChild(); child != null; child = child.getPrevSibling())
+		{
+			IElementType type = child.getNode().getElementType();
+			if (type == C3Types.IDENT || type == C3Types.HASH_IDENT || type == C3Types.CT_IDENT) return (LeafPsiElement) child;
+		}
 		PsiElement last = getLastChild();
 		return last instanceof LeafPsiElement ? (LeafPsiElement) last : null;
 	}

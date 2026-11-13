@@ -1,8 +1,10 @@
 package org.c3lang.intellij.intention;
 
+import com.intellij.lang.ASTNode;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.c3lang.intellij.index.NameIndexService;
@@ -28,6 +30,31 @@ import java.util.Set;
 public final class C3Interfaces
 {
 	private C3Interfaces() {}
+
+	/**
+	 * The interface types a declaration lists: the implements list of a struct, union, bitstruct,
+	 * typedef, enum or constdef ({@code struct Foo (Printable, Other)}), or the parents of an
+	 * interface ({@code interface Loud : Printable}). Reads the syntax tree of the declaration only,
+	 * so it is safe during indexing.
+	 */
+	public static @NotNull List<C3Type> implementedInterfaceTypes(@NotNull C3TypeName typeName)
+	{
+		// The AST parent: the stub parent of a type name skips declarations that are not stubbed.
+		ASTNode parent = typeName.getNode().getTreeParent();
+		PsiElement declaration = parent != null ? parent.getPsi() : null;
+		if (declaration == null) return List.of();
+		if (declaration instanceof C3InterfaceDefinition definition) return definition.getTypeList();
+
+		C3InterfaceImpl impl = PsiTreeUtil.getChildOfType(declaration, C3InterfaceImpl.class);
+		return impl != null ? impl.getTypeList() : List.of();
+	}
+
+	/** The name of a type usage without module path and generic arguments: {@code Printable} for {@code io::Printable}. */
+	public static @Nullable String simpleName(@NotNull C3Type type)
+	{
+		String name = type.getBaseType().getNameIdent();
+		return name != null ? name : lastSegment(type.getText());
+	}
 
 	/** Names of the interfaces a struct claims to implement, e.g. {@code (Printable, Other)}. */
 	public static @NotNull List<String> interfaceNames(@NotNull C3StructDeclaration struct)
@@ -195,7 +222,8 @@ public final class C3Interfaces
 		}
 	}
 
-	private static @Nullable C3InterfaceDefinition findInterface(@NotNull String name, @NotNull Project project)
+	/** The first interface declared under this simple name in any module. */
+	public static @Nullable C3InterfaceDefinition findInterface(@NotNull String name, @NotNull Project project)
 	{
 		for (C3FullyQualifiedNamePsiElement el : NameIndexService.INSTANCE.findByNameEndsWith(name, project))
 		{

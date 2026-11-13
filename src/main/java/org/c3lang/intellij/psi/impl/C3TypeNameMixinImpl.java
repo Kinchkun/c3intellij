@@ -1,10 +1,13 @@
 package org.c3lang.intellij.psi.impl;
 
+import com.intellij.ide.projectView.PresentationData;
 import com.intellij.lang.ASTNode;
+import com.intellij.navigation.ItemPresentation;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.tree.IElementType;
+import org.c3lang.intellij.C3Icons;
 import org.c3lang.intellij.psi.C3TypeName;
 import org.c3lang.intellij.psi.C3Types;
 import org.c3lang.intellij.psi.FullyQualifiedName;
@@ -13,6 +16,8 @@ import org.c3lang.intellij.stubs.C3TypeEnum;
 import org.c3lang.intellij.stubs.C3TypeNameStub;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import javax.swing.Icon;
 
 public abstract class C3TypeNameMixinImpl extends C3StubBasedPsiElementBase<C3TypeNameStub> implements C3TypeName
 {
@@ -65,6 +70,30 @@ public abstract class C3TypeNameMixinImpl extends C3StubBasedPsiElementBase<C3Ty
 		if (last != null && last.getNode().getElementType() == C3Types.TYPE_IDENT)
 			return (LeafPsiElement) last;
 		return null;
+	}
+
+	/** How the type reads in navigation popups: its name with its module as the location. */
+	@Override
+	public @NotNull ItemPresentation getPresentation()
+	{
+		FullyQualifiedName fqName = getFqName();
+		ModuleName module = fqName.getModule();
+		return new PresentationData(fqName.getName(), module != null ? module.getValue() : null, icon(getTypeEnum()), null);
+	}
+
+	private static @Nullable Icon icon(@NotNull C3TypeEnum typeEnum)
+	{
+		return switch (typeEnum)
+		{
+			case STRUCT -> C3Icons.Nodes.STRUCT;
+			case UNION -> C3Icons.Nodes.UNION;
+			case INTERFACE -> C3Icons.Nodes.INTERFACE;
+			case ENUM -> C3Icons.Nodes.ENUM;
+			case CONSTDEF -> C3Icons.Nodes.CONSTDEF;
+			case BITSTRUCT -> C3Icons.Nodes.BITSTRUCT;
+			case FAULT -> C3Icons.Nodes.FAULT;
+			case FALLBACK -> null;
+		};
 	}
 
 	@Override

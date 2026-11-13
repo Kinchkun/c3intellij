@@ -6,7 +6,10 @@ import com.intellij.execution.process.KillableProcessHandler;
 import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil;
 import com.intellij.execution.ui.ConsoleView;
+import com.intellij.openapi.actionSystem.AnAction;
+import org.c3lang.intellij.testing.C3ShowTestOutputAction;
 import org.c3lang.intellij.testing.C3TestConsoleProperties;
+import org.c3lang.intellij.testing.C3TestOutputSetting;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
@@ -81,6 +84,22 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
         return "test".equals(command) || "compile-test".equals(command);
     }
 
+    /** The arguments after the {@code c3c} subcommand: the configured ones plus what the settings add for tests. */
+    public @NotNull List<String> commandParameters()
+    {
+        // Split the args by spaces: GeneralCommandLine would otherwise quote a value
+        // containing spaces and produce invalid syntax (e.g. c3c test "--param value").
+        List<String> parameters = new ArrayList<>();
+        String args = getArgs();
+        if (args != null && !args.isEmpty()) parameters.addAll(Arrays.asList(args.split(" ")));
+        if (isTestCommand())
+        {
+            C3SettingsState.getInstance().addTestSanitizer(parameters);
+            C3TestOutputSetting.apply(getProject(), parameters);
+        }
+        return parameters;
+    }
+
     @Override public void checkConfiguration()
     {
     }
@@ -97,7 +116,10 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
                 ConsoleView console = SMTestRunnerConnectionUtil.createAndAttachConsole(
                     C3TestConsoleProperties.FRAMEWORK, processHandler,
                     new C3TestConsoleProperties(C3CommandRunConfiguration.this, executor));
-                return new DefaultExecutionResult(console, processHandler, createActions(console, processHandler, executor));
+                // The output toggle sits with Rerun and Stop, one click away.
+                List<AnAction> actions = new ArrayList<>(Arrays.asList(createActions(console, processHandler, executor)));
+                actions.add(new C3ShowTestOutputAction(getEnvironment()));
+                return new DefaultExecutionResult(console, processHandler, actions.toArray(AnAction.EMPTY_ARRAY));
             }
 
             @Override protected @NotNull ProcessHandler startProcess() throws ExecutionException
@@ -105,12 +127,7 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
                 String sdk = C3SettingsState.getInstance().sdk;
                 GeneralCommandLine commandLine = new GeneralCommandLine(sdk, command);
 
-                // Split the args by spaces: GeneralCommandLine would otherwise quote a value
-                // containing spaces and produce invalid syntax (e.g. c3c test "--param value").
-                List<String> parameters = new ArrayList<>();
-                String args = getArgs();
-                if (args != null && !args.isEmpty()) parameters.addAll(Arrays.asList(args.split(" ")));
-                if (isTestCommand()) C3SettingsState.getInstance().addTestSanitizer(parameters);
+                List<String> parameters = commandParameters();
                 commandLine.addParameters(parameters);
 
                 commandLine.setWorkDirectory(getWorkingDirectory());
@@ -120,6 +137,9 @@ public class C3CommandRunConfiguration extends RunConfigurationBase<C3BuildRunCo
                 {
                     // The test tree parses the runner's output line by line: keep it free of ANSI colors.
                     commandLine.withEnvironment("TERM", "dumb");
+                    // A test prints to stdout and stderr; read as one stream, its output stays in
+                    // order and between the `Testing ...` line and the result of its test.
+                    if (C3TestOutputSetting.showsOutput(parameters)) commandLine.withRedirectErrorStream(true);
                     processHandler = new KillableProcessHandler(commandLine);
                 }
                 else

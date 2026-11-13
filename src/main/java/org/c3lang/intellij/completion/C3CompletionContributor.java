@@ -28,6 +28,8 @@ public final class C3CompletionContributor extends CompletionContributor
 		// First: after `EnumType.` only the enum's constants are valid, and this provider stops the
 		// chain so the broken-parse position doesn't also draw type/value completions.
 		extend(CompletionType.BASIC, pattern, EnumAccessCompletionContributor.INSTANCE);
+		// Likewise after the `.` of a designated initializer only a field of the struct is valid.
+		extend(CompletionType.BASIC, pattern, InitializerListCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, LocalCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, FunctionCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, NamedArgumentCompletionContributor.INSTANCE);
@@ -37,7 +39,6 @@ public final class C3CompletionContributor extends CompletionContributor
 		extend(CompletionType.BASIC, pattern, ConstCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, FaultCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, TailExprCompletionContributor.INSTANCE);
-		extend(CompletionType.BASIC, pattern, InitializerListCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, DocCommentCompletionContributor.INSTANCE);
 		extend(CompletionType.BASIC, pattern, TopLevelCompletionContributor.INSTANCE);
 	}

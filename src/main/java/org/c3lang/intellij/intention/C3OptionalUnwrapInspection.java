@@ -7,14 +7,21 @@ import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.ProblemsHolder;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
+import com.intellij.openapi.util.RecursionManager;
 import com.intellij.psi.PsiReference;
+import com.intellij.psi.util.CachedValueProvider;
+import com.intellij.psi.util.CachedValuesManager;
+import com.intellij.psi.util.PsiModificationTracker;
 import com.intellij.psi.util.PsiTreeUtil;
+import org.c3lang.intellij.psi.C3AccessIdent;
 import org.c3lang.intellij.psi.C3Arg;
 import org.c3lang.intellij.psi.C3ArgList;
 import org.c3lang.intellij.psi.C3BinaryExpr;
 import org.c3lang.intellij.psi.C3BinaryOp;
 import org.c3lang.intellij.psi.C3CallExpr;
 import org.c3lang.intellij.psi.C3CallExprTail;
+import org.c3lang.intellij.psi.C3CatchUnwrap;
+import org.c3lang.intellij.psi.C3CtDefinedExpr;
 import org.c3lang.intellij.psi.C3Expr;
 import org.c3lang.intellij.psi.C3ExprStmt;
 import org.c3lang.intellij.psi.C3File;
@@ -26,6 +33,8 @@ import org.c3lang.intellij.psi.C3LambdaDeclExpr;
 import org.c3lang.intellij.psi.C3LambdaDeclShortExpr;
 import org.c3lang.intellij.psi.C3LocalDeclAfterType;
 import org.c3lang.intellij.psi.C3MacroDefinition;
+import org.c3lang.intellij.psi.C3MacroFuncBody;
+import org.c3lang.intellij.psi.C3MacroImpliesBody;
 import org.c3lang.intellij.psi.C3OptionalType;
 import org.c3lang.intellij.psi.C3ParamDecl;
 import org.c3lang.intellij.psi.C3Parameter;
@@ -33,6 +42,9 @@ import org.c3lang.intellij.psi.C3ParameterList;
 import org.c3lang.intellij.psi.C3PathIdent;
 import org.c3lang.intellij.psi.C3PathIdentExpr;
 import org.c3lang.intellij.psi.C3ReturnStmt;
+import org.c3lang.intellij.psi.C3StructMemberDeclaration;
+import org.c3lang.intellij.psi.C3TernaryExpr;
+import org.c3lang.intellij.psi.C3TryUnwrap;
 import org.c3lang.intellij.psi.C3Types;
 import org.c3lang.intellij.psi.C3Visitor;
 import org.jetbrains.annotations.NotNull;
@@ -45,22 +57,26 @@ import java.util.List;
  * Reports an optional value ({@code T?}) flowing into a place that holds a plain {@code T}, which
  * the compiler rejects ("It is not possible to cast from 'sz?' to 'sz'"): the initializer of a
  * local declared without {@code ?}, an assignment to such a local, global or parameter, and a
- * {@code return} in a function whose return type has no {@code ?}.
+ * {@code return} in a function whose return type has no {@code ?} ({@code return NOT_FOUND~;} in
+ * a {@code fn void}).
  *
  * <p>A value counts as optional when it is a call whose function or macro declares a {@code T?}
  * return type and that is not unwrapped by a {@code !} or {@code !!} tail, a call to a function
  * with an optional argument (the compiler makes such a call's result optional, whatever the
- * parameter type), or a variable declared {@code T?}. Anything else, in particular an unresolved
+ * parameter type), a call to a macro without a written return type whose body returns an optional
+ * or rethrows, a variable declared {@code T?}, or a fault raised with {@code ~}. Anything else, in particular an unresolved
  * callee, a {@code ??} default or an expression nested in an operator, stays quiet, so the
  * inspection never reports what it does not know.</p>
  *
- * <p>Two more places are reported: an optional argument for a typed macro parameter (the compiler
- * rejects it; untyped, {@code #} and {@code $} parameters accept optionals), and a call statement
- * whose optional result is discarded, unless the callee is {@code @maydiscard}.</p>
+ * <p>Three more places are reported: an optional argument for a typed macro parameter (the compiler
+ * rejects it; untyped, {@code #} and {@code $} parameters accept optionals), a call statement
+ * whose optional result is discarded, unless the callee is {@code @maydiscard}, and a rethrow
+ * ({@code expr!}) in a function, macro or lambda whose written return type has no {@code ?}.</p>
  *
  * <p>The <i>Propagate the fault</i> quick fix appends {@code !} to the expression and, when the
  * enclosing function, macro or lambda declares a return type without {@code ?}, turns it into
- * {@code T?}. On a {@code return} only the return type changes.</p>
+ * {@code T?}. On a {@code return} only the return type changes and the fix is called
+ * <i>Change return type to 'T?'</i>.</p>
  */
 public final class C3OptionalUnwrapInspection extends LocalInspectionTool
 {
@@ -105,25 +121,47 @@ public final class C3OptionalUnwrapInspection extends LocalInspectionTool
 			}
 
 			@Override
+			public void visitTernaryExpr(@NotNull C3TernaryExpr ternary)
+			{
+				// The grammar reads `target = flag ? a : b` as `(target = flag) ? a : b`: the
+				// assigned value is the choice between the two branches.
+				List<C3Expr> operands = ternary.getExprList();
+				if (operands.size() != 3 || !(operands.get(0) instanceof C3BinaryExpr assignment)) return;
+				if (!isPlainAssignment(assignment)) return;
+				String declared = nonOptionalDeclaredType(assignment.getLeft());
+				if (declared == null) return;
+				// Each optional branch is reported on its own, so the fix unwraps exactly that branch.
+				reportAssignment(holder, operands.get(1), declared);
+				reportAssignment(holder, operands.get(2), declared);
+			}
+
+			@Override
 			public void visitExprStmt(@NotNull C3ExprStmt statement)
 			{
 				if (!(statement.getExpr() instanceof C3CallExpr call) || !isInvocation(call)) return;
-				PsiElement callee = C3Callees.resolve(call);
+				PsiElement callee = C3Callees.resolveWithAtMacros(call);
 				if (callee == null || C3Callees.isMayDiscard(callee)) return;
 				String optional = optionalTypeOf(call);
 				if (optional == null) return;
 				C3OptionalType returnType = C3Callees.returnType(callee);
 				String message = returnType != null && isOptional(returnType)
 					? "The call returns '" + optional + "', which is optional and must be handled"
-					: "The result of this call is optional due to its argument(s) and cannot be discarded";
-				holder.registerProblem(call, message, ProblemHighlightType.GENERIC_ERROR, new PropagateFaultFix(false));
+					: callee instanceof C3MacroDefinition
+						? "The macro returns an optional, which must be handled"
+						: "The result of this call is optional due to its argument(s) and cannot be discarded";
+				holder.registerProblem(call, message, ProblemHighlightType.GENERIC_ERROR, new PropagateFaultFix(false, null));
 			}
 
 			@Override
 			public void visitCallExpr(@NotNull C3CallExpr call)
 			{
+				if (isRethrow(call))
+				{
+					reportRethrow(holder, call);
+					return;
+				}
 				if (!isInvocation(call)) return;
-				if (!(C3Callees.resolve(call) instanceof C3MacroDefinition macro)) return;
+				if (!(C3Callees.resolveWithAtMacros(call) instanceof C3MacroDefinition macro)) return;
 				List<C3Parameter> parameters = typedPositionalParameters(macro);
 				int positional = 0;
 				for (C3Arg arg : arguments(call))
@@ -150,7 +188,7 @@ public final class C3OptionalUnwrapInspection extends LocalInspectionTool
 						"Optional '" + optional + "' cannot be passed to parameter '" + parameter.getName()
 							+ "' of type '" + parameter.getType().getText() + "'",
 						ProblemHighlightType.GENERIC_ERROR,
-						new PropagateFaultFix(false));
+						new PropagateFaultFix(false, null));
 				}
 			}
 
@@ -161,37 +199,114 @@ public final class C3OptionalUnwrapInspection extends LocalInspectionTool
 				if (value == null) return;
 				C3OptionalType returnType = enclosingReturnType(statement);
 				if (returnType == null || isOptional(returnType)) return;
-				String optional = optionalTypeOf(value);
+				String optional = optionalTypeOf(value, returnType.getText());
 				if (optional == null) return;
 				holder.registerProblem(
 					value,
 					"Optional '" + optional + "' cannot be returned from a function returning '" + returnType.getText() + "'",
 					ProblemHighlightType.GENERIC_ERROR,
-					new PropagateFaultFix(true));
+					new PropagateFaultFix(true, returnType.getText() + "?"));
 			}
 		};
 	}
 
+	/**
+	 * A rethrow ({@code expr!}) returns the fault from the enclosing function, macro or lambda, so
+	 * that one must return an optional; a macro or lambda that infers its return type is fine.
+	 */
+	private static void reportRethrow(@NotNull ProblemsHolder holder, @NotNull C3CallExpr rethrow)
+	{
+		// `$defined(maybe()!)` only checks the expression, nothing is rethrown.
+		if (PsiTreeUtil.getParentOfType(rethrow, C3CtDefinedExpr.class) != null) return;
+		C3OptionalType returnType = enclosingReturnType(rethrow);
+		if (returnType == null || isOptional(returnType)) return;
+		holder.registerProblem(
+			rethrow,
+			"This expression rethrows with '!', but the " + enclosingCallableKind(rethrow) + " returns '"
+				+ returnType.getText() + "', which is not optional",
+			ProblemHighlightType.GENERIC_ERROR,
+			new PropagateFaultFix(true, returnType.getText() + "?"),
+			new ForceUnwrapFix());
+	}
+
+	private static @NotNull String enclosingCallableKind(@NotNull PsiElement element)
+	{
+		PsiElement callable = PsiTreeUtil.getParentOfType(element,
+			C3FuncDefinition.class, C3MacroDefinition.class, C3LambdaDeclExpr.class, C3LambdaDeclShortExpr.class);
+		if (callable instanceof C3MacroDefinition) return "macro";
+		return callable instanceof C3FuncDefinition ? "function" : "lambda";
+	}
+
+	/** {@code expr!}: a call expression whose tail is the rethrow operator. */
+	private static boolean isRethrow(@NotNull C3CallExpr call)
+	{
+		C3CallExprTail tail = call.getCallExprTail();
+		return tail != null && tail.getNode().findChildByType(C3Types.BANG) != null;
+	}
+
 	private static void reportAssignment(@NotNull ProblemsHolder holder, @NotNull C3Expr value, @NotNull String declared)
 	{
-		String optional = optionalTypeOf(value);
+		String optional = optionalTypeOf(value, declared);
 		if (optional == null) return;
 		holder.registerProblem(
 			value,
 			"Optional '" + optional + "' cannot be assigned to non-optional '" + declared + "'",
 			ProblemHighlightType.GENERIC_ERROR,
-			new PropagateFaultFix(false));
+			new PropagateFaultFix(false, null));
 	}
 
-	/** The type text of {@code expr} when it is an optional call or an optional variable, else null. */
+	/**
+	 * As {@link #optionalTypeOf(C3Expr)}, for a value flowing into a place of type {@code target}:
+	 * a raised fault ({@code NOT_FOUND~}) has no type of its own and takes the optional of the
+	 * target, as in the compiler's message ("cast from 'void?' to 'void'").
+	 */
+	private static @Nullable String optionalTypeOf(@NotNull C3Expr expr, @NotNull String target)
+	{
+		String optional = optionalTypeOf(expr);
+		return RAISED_FAULT.equals(optional) ? target + "?" : optional;
+	}
+
+	/** What {@link #optionalTypeOf(C3Expr)} answers for a raised fault, which has no value type of its own. */
+	private static final String RAISED_FAULT = "fault?";
+
+	/** A fault turned into an optional with the {@code ~} suffix: {@code NOT_FOUND~}, {@code io::EOF~}. */
+	private static boolean isRaisedFault(@NotNull C3Expr expr)
+	{
+		if (!(expr instanceof C3CallExpr call)) return false;
+		C3CallExprTail tail = call.getCallExprTail();
+		return tail != null && tail.getNode().findChildByType(C3Types.BIT_NOT) != null;
+	}
+
+	/**
+	 * The type text of {@code expr} when it is an optional call, an optional variable, a raised
+	 * fault, or a choice with an optional branch ({@code a ?: FAULT~}, {@code flag ? a : FAULT~},
+	 * {@code maybe() ?? FAULT~}), else null.
+	 */
 	static @Nullable String optionalTypeOf(@NotNull C3Expr expr)
 	{
+		if (isRaisedFault(expr)) return RAISED_FAULT;
+		if (expr instanceof C3TernaryExpr ternary)
+		{
+			List<C3Expr> operands = ternary.getExprList();
+			return operands.size() == 3 ? optionalTypeOfAny(operands.get(1), operands.get(2)) : null;
+		}
+		if (expr instanceof C3BinaryExpr binary)
+		{
+			C3Expr right = binary.getRight();
+			if (right == null) return null;
+			// `a ?: b` is `a` or `b`; `a ?? b` handles the optional of `a` and leaves that of `b`.
+			if (binary.getNode().findChildByType(C3Types.ELVIS) != null) return optionalTypeOfAny(binary.getLeft(), right);
+			if (binary.getNode().findChildByType(C3Types.OPTELSE) != null) return optionalTypeOf(right);
+			return null;
+		}
 		if (expr instanceof C3CallExpr call)
 		{
 			if (!isInvocation(call)) return null;
-			PsiElement callee = C3Callees.resolve(call);
+			PsiElement callee = C3Callees.resolveWithAtMacros(call);
 			C3OptionalType returnType = C3Callees.returnType(callee);
 			if (returnType != null && isOptional(returnType)) return returnType.getText();
+			// `macro @ok(#call) { ... return CURL_ERROR~; ... }`: the inferred return type is optional.
+			if (returnType == null && callee instanceof C3MacroDefinition macro && infersOptional(macro)) return RAISED_FAULT;
 			// `f(maybe())` where f is a function: the compiler makes the call's result optional.
 			if (callee instanceof C3FuncDef && hasOptionalArgument(call))
 			{
@@ -202,14 +317,89 @@ public final class C3OptionalUnwrapInspection extends LocalInspectionTool
 		if (expr instanceof C3PathIdentExpr)
 		{
 			C3OptionalType declared = declaredType(resolveVariable(expr));
-			return declared != null && isOptional(declared) ? declared.getText() : null;
+			if (declared == null || !isOptional(declared) || isCheckedByCatchOrTry(expr)) return null;
+			return declared.getText();
 		}
 		return null;
 	}
 
-	/** The written type of the variable {@code target} names when that type has no {@code ?}, else null. */
+	/**
+	 * Whether a macro without a written return type returns an optional: one of its {@code return}s
+	 * (or its {@code => expr} body) is optional, or its body rethrows with {@code !}. Returns and
+	 * rethrows of a lambda inside the macro belong to the lambda.
+	 */
+	private static boolean infersOptional(@NotNull C3MacroDefinition macro)
+	{
+		return CachedValuesManager.getCachedValue(macro, () -> CachedValueProvider.Result.create(
+			Boolean.TRUE.equals(RecursionManager.doPreventingRecursion(macro, false, () -> computeInfersOptional(macro))),
+			PsiModificationTracker.MODIFICATION_COUNT));
+	}
+
+	private static boolean computeInfersOptional(@NotNull C3MacroDefinition macro)
+	{
+		C3MacroFuncBody body = macro.getMacroFuncBody();
+		C3MacroImpliesBody impliesBody = body.getMacroImpliesBody();
+		C3Expr shortBody = body.getExpr() != null ? body.getExpr() : impliesBody != null ? impliesBody.getExpr() : null;
+		if (shortBody != null && optionalTypeOf(shortBody) != null) return true;
+
+		for (C3ReturnStmt statement : PsiTreeUtil.findChildrenOfType(body, C3ReturnStmt.class))
+		{
+			C3Expr value = statement.getExpr();
+			if (value != null && belongsTo(statement, macro) && optionalTypeOf(value) != null) return true;
+		}
+		for (C3CallExpr call : PsiTreeUtil.findChildrenOfType(body, C3CallExpr.class))
+		{
+			if (isRethrow(call) && belongsTo(call, macro)
+				&& PsiTreeUtil.getParentOfType(call, C3CtDefinedExpr.class) == null) return true;
+		}
+		return false;
+	}
+
+	/** Whether {@code element} is in the body of {@code macro} itself and not in a lambda nested in it. */
+	private static boolean belongsTo(@NotNull PsiElement element, @NotNull C3MacroDefinition macro)
+	{
+		return PsiTreeUtil.getParentOfType(element,
+			C3FuncDefinition.class, C3MacroDefinition.class, C3LambdaDeclExpr.class, C3LambdaDeclShortExpr.class) == macro;
+	}
+
+	/**
+	 * Whether the enclosing function, macro or lambda tests the variable {@code identifierExpr}
+	 * names with {@code catch} or {@code try} ({@code if (catch prec) return ...;},
+	 * {@code if (try value)}). After such a test the compiler treats the variable as unwrapped;
+	 * where exactly is flow analysis this inspection does not do, so a tested variable stays quiet.
+	 */
+	private static boolean isCheckedByCatchOrTry(@NotNull C3Expr identifierExpr)
+	{
+		PsiElement scope = PsiTreeUtil.getParentOfType(identifierExpr,
+			C3FuncDefinition.class, C3MacroDefinition.class, C3LambdaDeclExpr.class, C3LambdaDeclShortExpr.class);
+		if (scope == null) return false;
+		String name = identifierExpr.getText();
+		for (PsiElement unwrap : PsiTreeUtil.findChildrenOfAnyType(scope, C3CatchUnwrap.class, C3TryUnwrap.class))
+		{
+			for (C3PathIdent tested : PsiTreeUtil.findChildrenOfType(unwrap, C3PathIdent.class))
+			{
+				if (name.equals(tested.getText())) return true;
+			}
+		}
+		return false;
+	}
+
+	/** The optional type of the first optional operand, preferring one with a value type over a bare raised fault. */
+	private static @Nullable String optionalTypeOfAny(@NotNull C3Expr first, @NotNull C3Expr second)
+	{
+		String firstType = optionalTypeOf(first);
+		String secondType = optionalTypeOf(second);
+		if (firstType != null && !RAISED_FAULT.equals(firstType)) return firstType;
+		return secondType != null ? secondType : firstType;
+	}
+
+	/**
+	 * The written type of the variable or struct member {@code target} names when that type has no
+	 * {@code ?}, else null. A struct member ({@code self.curl}) is never optional.
+	 */
 	private static @Nullable String nonOptionalDeclaredType(@NotNull C3Expr target)
 	{
+		if (target instanceof C3CallExpr access) return memberType(access);
 		if (!(target instanceof C3PathIdentExpr)) return null;
 		PsiElement variable = resolveVariable(target);
 		if (variable instanceof C3Parameter parameter)
@@ -218,6 +408,17 @@ public final class C3OptionalUnwrapInspection extends LocalInspectionTool
 		}
 		C3OptionalType declared = declaredType(variable);
 		return declared != null && !isOptional(declared) ? declared.getText() : null;
+	}
+
+	/** The written type of the struct member a member access ({@code self.curl}) resolves to, else null. */
+	private static @Nullable String memberType(@NotNull C3CallExpr access)
+	{
+		C3CallExprTail tail = access.getCallExprTail();
+		C3AccessIdent member = tail != null ? tail.getAccessIdent() : null;
+		PsiReference reference = member != null ? member.getReference() : null;
+		PsiElement resolved = reference != null ? reference.resolve() : null;
+		if (!(resolved instanceof C3StructMemberDeclaration declaration)) return null;
+		return declaration.getType() != null ? declaration.getType().getText() : null;
 	}
 
 	private static @Nullable PsiElement resolveVariable(@NotNull C3Expr identifierExpr)
@@ -317,20 +518,56 @@ public final class C3OptionalUnwrapInspection extends LocalInspectionTool
 		return null;
 	}
 
-	/** Appends {@code !} to the reported expression (not on a {@code return}) and makes the enclosing callable return {@code T?}. */
+	/** Replaces the rethrow {@code !} of the reported expression with {@code !!}, which panics instead of returning the fault. */
+	private static final class ForceUnwrapFix implements LocalQuickFix
+	{
+		@Override
+		public @NotNull String getFamilyName()
+		{
+			return "Replace '!' with '!!'";
+		}
+
+		@Override
+		public void applyFix(@NotNull com.intellij.openapi.project.Project project, @NotNull com.intellij.codeInspection.ProblemDescriptor descriptor)
+		{
+			if (!(descriptor.getPsiElement() instanceof C3CallExpr rethrow)) return;
+			C3CallExprTail tail = rethrow.getCallExprTail();
+			com.intellij.lang.ASTNode bang = tail != null ? tail.getNode().findChildByType(C3Types.BANG) : null;
+			com.intellij.openapi.editor.Document document =
+				com.intellij.psi.PsiDocumentManager.getInstance(project).getDocument(rethrow.getContainingFile());
+			if (bang == null || document == null) return;
+			document.insertString(bang.getTextRange().getEndOffset(), "!");
+			com.intellij.psi.PsiDocumentManager.getInstance(project).commitDocument(document);
+		}
+	}
+
+	/**
+	 * Appends {@code !} to the reported expression and makes the enclosing callable return
+	 * {@code T?}. On a {@code return} only the return type changes, and the fix is named after it
+	 * ("Change return type to 'void?'").
+	 */
 	private static final class PropagateFaultFix implements LocalQuickFix
 	{
 		private final boolean returnStatement;
+		/** The return type the fix on a {@code return} produces, for its name; null otherwise. */
+		private final @Nullable String optionalReturnType;
 
-		private PropagateFaultFix(boolean returnStatement)
+		private PropagateFaultFix(boolean returnStatement, @Nullable String optionalReturnType)
 		{
 			this.returnStatement = returnStatement;
+			this.optionalReturnType = optionalReturnType;
+		}
+
+		@Override
+		public @NotNull String getName()
+		{
+			return optionalReturnType != null ? "Change return type to '" + optionalReturnType + "'" : getFamilyName();
 		}
 
 		@Override
 		public @NotNull String getFamilyName()
 		{
-			return "Propagate the fault";
+			return returnStatement ? "Change return type to optional" : "Propagate the fault";
 		}
 
 		@Override

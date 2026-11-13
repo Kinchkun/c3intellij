@@ -48,6 +48,8 @@ import java.util.regex.Pattern;
  */
 public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 {
+	private static final String KEEP_OBJECT_FILES = "--keep-obj";
+
 	private static final Pattern EXECUTABLE_PATTERN =
 		Pattern.compile("executable '([^']+)'");
 
@@ -75,43 +77,32 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 		RunProfile profile = environment.getRunProfile();
 		String sdk = C3SettingsState.getInstance().sdk;
 
+		// Arguments passed to the launched binary.
 		String workingDirectory;
-		List<String> buildArguments = new ArrayList<>();
-		// Arguments passed to the launched binary. For tests they are baked into the
-		// executable at build time (e.g. --test-filter), so the binary is run without them.
 		String binaryArgs;
-
 		if (profile instanceof C3BuildRunConfiguration configuration)
 		{
 			workingDirectory = configuration.getWorkingDirectory();
-			buildArguments.add("build");
-			// Build the selected target with the configured c3c flags (the "Additional arguments"),
-			// mirroring `c3c run <target> <args>`. The debuggee then receives the "Program arguments".
-			String target = configuration.getTarget();
-			if (target != null && !target.isBlank()) buildArguments.add(target.trim());
-			addBuildArgs(buildArguments, configuration.getArgs());
 			binaryArgs = configuration.getProgramArgs();
 		}
 		else if (profile instanceof C3CompileRunConfiguration configuration)
 		{
-			// Single file (e.g. a scratch): compile it (with debug info) into an executable,
-			// then launch that under LLDB.
 			workingDirectory = configuration.getWorkingDirectory();
 			binaryArgs = configuration.getArgs();
-			buildArguments.add("compile");
-			buildArguments.add(configuration.getSourceFile());
-			buildArguments.add("-O0"); // emit debug info
 		}
-		else if (profile instanceof C3CommandRunConfiguration configuration && "test".equals(configuration.getCommand()))
+		else if (profile instanceof C3CommandRunConfiguration configuration)
 		{
 			workingDirectory = configuration.getWorkingDirectory();
-			binaryArgs = null;
-			buildArguments.add("test");
-			addBuildArgs(buildArguments, configuration.getArgs());
-			C3SettingsState.getInstance().addTestSanitizer(buildArguments);
-			buildArguments.add("--suppress-run"); // build the test binary, don't run it
+			binaryArgs = String.join(" ", testBinaryArguments(configuration.getArgs()));
 		}
 		else
+		{
+			workingDirectory = null;
+			binaryArgs = null;
+		}
+
+		List<String> buildArguments = buildArguments(profile);
+		if (buildArguments == null || workingDirectory == null)
 		{
 			promise.setError(new ExecutionException("This configuration cannot be debugged."));
 			return promise;
@@ -177,6 +168,75 @@ public final class C3DebugRunner extends AsyncProgramRunner<RunnerSettings>
 		});
 
 		return promise;
+	}
+
+	/**
+	 * The {@code c3c} arguments that build the binary to debug, or null when the configuration
+	 * cannot be debugged.
+	 *
+	 * <p>A project build keeps its object files ({@code --keep-obj}). On macOS the debug info stays in
+	 * the object files and the executable only refers to them; c3c deletes them after linking, and
+	 * with the built-in linker ({@code "linker": "builtin"}) it writes no {@code .dSYM} either, so
+	 * LLDB found no source lines and no breakpoint was hit.</p>
+	 */
+	static @Nullable List<String> buildArguments(@NotNull RunProfile profile)
+	{
+		List<String> buildArguments = new ArrayList<>();
+		if (profile instanceof C3BuildRunConfiguration configuration)
+		{
+			buildArguments.add("build");
+			// Build the selected target with the configured c3c flags (the "Additional arguments"),
+			// mirroring `c3c run <target> <args>`. The debuggee then receives the "Program arguments".
+			String target = configuration.getTarget();
+			if (target != null && !target.isBlank()) buildArguments.add(target.trim());
+			addBuildArgs(buildArguments, configuration.getArgs());
+		}
+		else if (profile instanceof C3CompileRunConfiguration configuration)
+		{
+			// Single file (e.g. a scratch): compile it (with debug info) into an executable,
+			// then launch that under LLDB.
+			buildArguments.add("compile");
+			buildArguments.add(configuration.getSourceFile());
+			buildArguments.add("-O0"); // emit debug info
+			// Linked with the system linker, which writes a .dSYM; no object files left in the
+			// folder of the scratch.
+			return buildArguments;
+		}
+		else if (profile instanceof C3CommandRunConfiguration configuration && "test".equals(configuration.getCommand()))
+		{
+			buildArguments.add("test");
+			addBuildArgs(buildArguments, configuration.getArgs());
+			C3SettingsState.getInstance().addTestSanitizer(buildArguments);
+			buildArguments.add("--suppress-run"); // build the test binary, don't run it
+		}
+		else
+		{
+			return null;
+		}
+		if (!buildArguments.contains(KEEP_OBJECT_FILES)) buildArguments.add(KEEP_OBJECT_FILES);
+		return buildArguments;
+	}
+
+	/**
+	 * The arguments the test binary itself takes, picked from the {@code c3c test} arguments of the
+	 * configuration: {@code c3c} launches {@code build/testrun --test-filter <name>}, and so must
+	 * the debugger, or the binary runs every test of the target instead of the selected one. The
+	 * test's output is shown as it is printed; captured output would appear only for a failing test.
+	 */
+	static @NotNull List<String> testBinaryArguments(@Nullable String args)
+	{
+		List<String> result = new ArrayList<>();
+		String[] tokens = args == null || args.isBlank() ? new String[0] : args.trim().split("\\s+");
+		for (int index = 0; index < tokens.length; index++)
+		{
+			String token = tokens[index];
+			if (!token.startsWith("--test-")) continue;
+			result.add(token);
+			// `--test-filter <name>` takes its value as the next argument.
+			if (token.equals("--test-filter") && index + 1 < tokens.length) result.add(tokens[++index]);
+		}
+		if (!result.contains("--test-show-output") && !result.contains("--test-nocapture")) result.add("--test-show-output");
+		return result;
 	}
 
 	private static void startDebugSession(

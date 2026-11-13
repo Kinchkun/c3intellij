@@ -55,4 +55,31 @@ public class C3EnumCompletionTest extends C3TestCase
 			assertFalse("enum constants must not appear on value access", lookups.contains("WRITEDATA"));
 		}
 	}
+
+	private static final String RESULT =
+		"module curl;\nenum CurlResult : int\n{\n\tOK,\n\tUNSUPPORTED_PROTOCOL,\n\tOBSOLETE20,\n"
+			+ "\tABORTED_BY_CALLBACK,\n\tOBSOLETE24,\n\tOUT_OF_MEMORY,\n}\n";
+
+	private List<String> completeResult(String body)
+	{
+		myFixture.addFileToProject("result.c3", RESULT);
+		myFixture.configureByText("app.c3", "module app;\nimport curl;\nfn void f(CurlResult result)\n{\n" + body + "}\n");
+		myFixture.completeBasic();
+		return myFixture.getLookupElementStrings();
+	}
+
+	/** Constants starting with the typed text come first, in declaration order; `OK` is not buried under `OBSOLETE…`. */
+	public void testPrefixMatchesFirstInDeclarationOrder()
+	{
+		assertEquals(
+			List.of("OK", "OBSOLETE20", "OBSOLETE24", "OUT_OF_MEMORY", "UNSUPPORTED_PROTOCOL", "ABORTED_BY_CALLBACK"),
+			completeResult("    if (result == curl::CurlResult.O<caret>) {\n    }\n"));
+	}
+
+	public void testAllConstantsInDeclarationOrder()
+	{
+		assertEquals(
+			List.of("OK", "UNSUPPORTED_PROTOCOL", "OBSOLETE20", "ABORTED_BY_CALLBACK", "OBSOLETE24", "OUT_OF_MEMORY"),
+			completeResult("    if (result == curl::CurlResult.<caret>) {\n    }\n"));
+	}
 }

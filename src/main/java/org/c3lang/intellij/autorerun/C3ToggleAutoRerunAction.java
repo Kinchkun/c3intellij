@@ -1,5 +1,7 @@
 package org.c3lang.intellij.autorerun;
 
+import com.intellij.execution.runners.ExecutionUtil;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAware;
@@ -41,5 +43,11 @@ public final class C3ToggleAutoRerunAction extends ToggleAction implements DumbA
 		Project project = e.getProject();
 		e.getPresentation().setEnabledAndVisible(
 			project != null && C3AutoRerunService.hasC3ConfigurationSelected(project));
+
+		// The main toolbar does not paint a pressed toggle, so the state is also told by the icon
+		// (a green dot while auto-rerun is on) and by the text.
+		boolean enabled = isSelected(e);
+		e.getPresentation().setIcon(enabled ? ExecutionUtil.getLiveIndicator(AllIcons.Actions.Rerun) : AllIcons.Actions.Rerun);
+		e.getPresentation().setText(enabled ? "Auto-Rerun C3 on Change: On" : "Auto-Rerun C3 on Change: Off");
 	}
 }

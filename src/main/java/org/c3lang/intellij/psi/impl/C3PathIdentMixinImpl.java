@@ -3,6 +3,7 @@ package org.c3lang.intellij.psi.impl;
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -275,7 +276,11 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		}
 	}
 
-	/** Resolves to a parameter of the enclosing function/macro with a matching name. */
+	/**
+	 * Resolves to a parameter with a matching name of an enclosing function, macro or lambda, or
+	 * of a body-macro call whose trailing block contains the usage
+	 * ({@code @each_entry(map; key, value) { use(key); }}). The innermost declaration wins.
+	 */
 	private static class C3ParameterReference extends C3ReferenceBase<C3PathIdent>
 	{
 		C3ParameterReference(@NotNull C3PathIdent element)
@@ -286,20 +291,50 @@ public abstract class C3PathIdentMixinImpl extends C3PsiNamedElementImpl impleme
 		@Override
 		public @NotNull Collection<C3PsiElement> multiResolve()
 		{
-			C3FuncDefinition funcDef =
-				PsiTreeUtil.getParentOfType(myElement, C3FuncDefinition.class);
-			if (funcDef == null) return Collections.emptyList();
+			String name = myElement.getNameIdent();
+			if (name == null) return Collections.emptyList();
 
-			Collection<C3Parameter> params =
-				PsiTreeUtil.collectElementsOfType(funcDef, C3Parameter.class);
-			for (C3Parameter param : params)
+			for (PsiElement scope = myElement.getParent(); scope != null && !(scope instanceof PsiFile); scope = scope.getParent())
 			{
-				if (param.getNameIdent() != null && param.getNameIdent().equals(myElement.getNameIdent()))
-				{
-					return Collections.singleton(param);
-				}
+				C3Parameter parameter = findParameter(parameterOwner(scope, myElement), name);
+				if (parameter != null) return Collections.singleton(parameter);
 			}
 			return Collections.emptyList();
+		}
+
+		/** The element holding the parameters {@code scope} declares for {@code usage}, or null when it declares none. */
+		private static @Nullable PsiElement parameterOwner(@NotNull PsiElement scope, @NotNull PsiElement usage)
+		{
+			// The whole function, as before: its parameter list and those of lambdas inside it.
+			if (scope instanceof C3FuncDefinition) return scope;
+			if (scope instanceof C3MacroDefinition macro) return macro.getMacroParams();
+			if (scope instanceof C3LambdaDeclExpr lambda) return lambda.getLambdaDecl().getFnParameterList();
+			if (scope instanceof C3LambdaDeclShortExpr lambda) return lambda.getLambdaDecl().getFnParameterList();
+			if (scope instanceof C3CallExprTail tail
+				&& tail.getCallInvocation() != null
+				&& tail.getCompoundStatement() != null
+				&& PsiTreeUtil.isAncestor(tail.getCompoundStatement(), usage, false))
+			{
+				return tail.getCallInvocation().getCallArgList().getParameterList();
+			}
+			if (scope instanceof C3MacroImpliesBody body
+				&& body.getCallInvocation() != null
+				&& body.getCompoundStatement() != null
+				&& PsiTreeUtil.isAncestor(body.getCompoundStatement(), usage, false))
+			{
+				return body.getCallInvocation().getCallArgList().getParameterList();
+			}
+			return null;
+		}
+
+		private static @Nullable C3Parameter findParameter(@Nullable PsiElement owner, @NotNull String name)
+		{
+			if (owner == null) return null;
+			for (C3Parameter parameter : PsiTreeUtil.collectElementsOfType(owner, C3Parameter.class))
+			{
+				if (name.equals(parameter.getNameIdent())) return parameter;
+			}
+			return null;
 		}
 	}
 

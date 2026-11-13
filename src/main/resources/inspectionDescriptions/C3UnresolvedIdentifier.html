@@ -1,0 +1,19 @@
+<html>
+<body>
+Reports a plain name used as a value that is not declared, as the compiler does
+("'respons' could not be found, did you spell it right?").
+<pre><code>
+fn HttpResponse execute()
+{
+    HttpResponse response;
+    return respons; // 'respons' could not be found
+}
+</code></pre>
+<p>Only an unqualified lower-case name inside a function, macro or lambda body is checked: it must be a
+local, a parameter, a declaration of the same module or a <code>@builtin</code> of the standard library.
+The inspection needs the standard library to be indexed and stays quiet without it. A name that is
+declared anywhere in the project or its libraries is not reported either.</p>
+<p>The quick fix <i>Change to '…'</i> is offered for locals, parameters and declarations of the same module
+whose name is at most two edits away.</p>
+</body>
+</html>

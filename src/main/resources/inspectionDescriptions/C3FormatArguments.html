@@ -1,0 +1,18 @@
+<html>
+<body>
+Reports a format string whose placeholders do not match the arguments that follow it.
+<pre><code>
+io::printfn("status=%s body=", code, body);   // too many arguments: 1 placeholder, 2 arguments
+io::printfn("status=%s body=%s", code);       // too few arguments: 2 placeholders, 1 argument
+</code></pre>
+<p>For a function or macro marked <code>@format(n)</code> (<code>io::printfn</code>, <code>string::tformat</code>,
+<code>DString.appendf</code>, <code>log::info</code>) the compiler rejects a mismatch, so it is shown as an error.
+Format functions without the attribute, such as <code>io::eprintfn</code>, are not checked by the compiler;
+a parameter <code>String format</code> or <code>String fmt</code> directly followed by <code>args...</code> is
+recognised as a format string and a mismatch is a warning. At run time a missing argument prints
+<code>&lt;MISSING&gt;</code> and an extra argument is dropped.</p>
+<p><code>%%</code> is a literal percent sign, and a <code>*</code> width or precision (<code>%*d</code>) takes an
+argument of its own. Only a format written as a string literal is checked, and only when the arguments are
+written out (no <code>...splat</code>).</p>
+</body>
+</html>

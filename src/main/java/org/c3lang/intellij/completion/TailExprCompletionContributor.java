@@ -10,6 +10,9 @@ import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.patterns.ElementPattern;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiReference;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.icons.AllIcons;
 import com.intellij.util.ProcessingContext;
@@ -24,12 +27,17 @@ import org.c3lang.intellij.psi.C3AccessIdent;
 import org.c3lang.intellij.psi.C3CallExprTail;
 import org.c3lang.intellij.psi.C3CallablePsiElement;
 import org.c3lang.intellij.psi.C3FuncDef;
+import org.c3lang.intellij.psi.C3FullyQualifiedTypeNameProvider;
+import org.c3lang.intellij.psi.C3LocalDeclAfterType;
+import org.c3lang.intellij.psi.C3PathIdent;
+import org.c3lang.intellij.psi.C3PsiElement;
 import org.c3lang.intellij.psi.C3ExprStmt;
 import org.c3lang.intellij.psi.C3FullyQualifiedNamePsiElement;
 import org.c3lang.intellij.psi.C3ModuleDefinition;
 import org.c3lang.intellij.psi.C3Types;
 import org.c3lang.intellij.psi.FullyQualifiedName;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.List;
@@ -55,21 +63,35 @@ public final class TailExprCompletionContributor extends CompletionProvider<Comp
 		@NotNull ProcessingContext context,
 		@NotNull CompletionResultSet result)
 	{
-		if (!PATTERN.accepts(parameters.getPosition()) && !PATTERN.accepts(parameters.getOriginalPosition()))
-		{
-			return;
-		}
-
-		C3ExprStmt lookupTarget = CompletionExtensionsKt.siblingOf(parameters, C3ExprStmt.class);
-		if (lookupTarget == null) return;
-
-		String lookupString = CompletionExtensionsKt.getLookupString(parameters, lookupTarget);
-		FullyQualifiedName rootType = CompletionExtensionsKt.getRootType(lookupTarget);
-		if (rootType == null) return;
-
 		// Keep the trailing empty segment of `a.b.` (String.split drops it by default): it is the
 		// member being completed, after the walk through `b`.
-		List<String> idents = List.of(lookupString.substring(lookupString.indexOf('.') + 1).split("\\.", -1));
+		FullyQualifiedName rootType;
+		List<String> idents;
+		C3PsiElement usage;
+		AccessChain chain = accessChainAtCaret(parameters);
+		if (chain != null)
+		{
+			// Read from the text before the caret, so it also works where the completion dummy
+			// breaks the parse: in a `return`, in the value of a designated initializer.
+			rootType = chain.rootType;
+			idents = chain.idents;
+			usage = chain.root;
+		}
+		else
+		{
+			if (!PATTERN.accepts(parameters.getPosition()) && !PATTERN.accepts(parameters.getOriginalPosition()))
+			{
+				return;
+			}
+			C3ExprStmt lookupTarget = CompletionExtensionsKt.siblingOf(parameters, C3ExprStmt.class);
+			if (lookupTarget == null) return;
+
+			String lookupString = CompletionExtensionsKt.getLookupString(parameters, lookupTarget);
+			rootType = CompletionExtensionsKt.getRootType(lookupTarget);
+			if (rootType == null) return;
+			idents = List.of(lookupString.substring(lookupString.indexOf('.') + 1).split("\\.", -1));
+			usage = lookupTarget;
+		}
 		List<Pair<AccessPath, String>> fields =
 			StructService.INSTANCE.getFields(rootType, idents, parameters.getPosition().getProject());
 
@@ -86,12 +108,57 @@ public final class TailExprCompletionContributor extends CompletionProvider<Comp
 			);
 		}
 
-		addMethods(lookupTarget, rootType, idents, result);
+		addMethods(usage, rootType, idents, result);
+	}
+
+	/** A member access chain: the type of its root variable and the member names after it, the last one being typed. */
+	private record AccessChain(@NotNull C3PathIdent root, @NotNull FullyQualifiedName rootType, @NotNull List<String> idents) {}
+
+	/**
+	 * The access chain that ends at the caret when it is a plain {@code variable.member.} chain
+	 * whose root variable has a known type, else null.
+	 *
+	 * <p>The chain is read from the text right before the caret, so it is found wherever it stands:
+	 * in {@code easy_setopt(self.curl, option, request.<caret>)} the receiver is {@code request},
+	 * not the statement's first member access {@code self.curl}.</p>
+	 */
+	private static @Nullable AccessChain accessChainAtCaret(@NotNull CompletionParameters parameters)
+	{
+		PsiFile file = parameters.getOriginalFile();
+		CharSequence text = file.getViewProvider().getContents();
+		int caret = Math.min(parameters.getOffset(), text.length());
+		int start = caret;
+		while (start > 0 && (Character.isLetterOrDigit(text.charAt(start - 1)) || text.charAt(start - 1) == '_' || text.charAt(start - 1) == '.'))
+		{
+			start--;
+		}
+		String chain = text.subSequence(start, caret).toString();
+		int firstDot = chain.indexOf('.');
+		// A root that is a plain variable name: not `Type.`, not `mod::name.`, `$ct.`, `#expr.` or `).`.
+		if (firstDot <= 0 || chain.contains("..") || !(Character.isLowerCase(chain.charAt(0)) || chain.charAt(0) == '_')) return null;
+		if (start > 0 && ":$#@)]".indexOf(text.charAt(start - 1)) >= 0) return null;
+
+		C3PathIdent root = PsiTreeUtil.getParentOfType(file.findElementAt(start), C3PathIdent.class, false);
+		if (root == null || root.getTextRange().getStartOffset() != start) return null;
+		FullyQualifiedName rootType = variableType(root);
+		if (rootType == null) return null;
+		return new AccessChain(root, rootType, List.of(chain.substring(firstDot + 1).split("\\.", -1)));
+	}
+
+	/** The declared type of the local, parameter or global a name refers to, else null. */
+	private static @Nullable FullyQualifiedName variableType(@NotNull C3PathIdent name)
+	{
+		List<C3LocalDeclAfterType> locals = name.findLocalDeclAfterType();
+		if (locals.size() == 1) return locals.get(0).findTypeName();
+
+		PsiReference reference = name.getReference();
+		PsiElement resolved = reference != null ? reference.resolve() : null;
+		return resolved instanceof C3FullyQualifiedTypeNameProvider typed ? typed.findTypeName() : null;
 	}
 
 	/** Adds the methods (type-bound functions/macros) declared on the accessed type. */
 	private static void addMethods(
-		@NotNull C3ExprStmt lookupTarget,
+		@NotNull C3PsiElement lookupTarget,
 		@NotNull FullyQualifiedName rootType,
 		@NotNull List<String> idents,
 		@NotNull CompletionResultSet result)

@@ -1,10 +1,13 @@
 package org.c3lang.intellij.psi.impl;
 
+import com.intellij.ide.projectView.PresentationData;
 import com.intellij.lang.ASTNode;
+import com.intellij.navigation.ItemPresentation;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.tree.IElementType;
+import org.c3lang.intellij.C3Icons;
 import org.c3lang.intellij.psi.C3AttributeNames;
 import org.c3lang.intellij.psi.*;
 import org.c3lang.intellij.stubs.C3FuncDefStub;
@@ -86,6 +89,15 @@ public abstract class C3FuncDefMixinImpl extends C3StubBasedPsiElementBase<C3Fun
 	{
 		LeafPsiElement ident = getNameIdentElement();
 		return ident != null ? ident.getTextOffset() : super.getTextOffset();
+	}
+
+	/** How the function reads in navigation popups: {@code Foo.print} with its module as the location. */
+	@Override
+	public @NotNull ItemPresentation getPresentation()
+	{
+		FullyQualifiedName fqName = getFqName();
+		ModuleName module = fqName.getModule();
+		return new PresentationData(fqName.getName(), module != null ? module.getValue() : null, C3Icons.Nodes.FUNCTION, null);
 	}
 
 	@Override

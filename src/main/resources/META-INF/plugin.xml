@@ -24,6 +24,7 @@
     <stubIndex implementation="org.c3lang.intellij.index.ReturnTypeIndex"/>
     <stubIndex implementation="org.c3lang.intellij.index.StructDeclarationIndex"/>
     <stubIndex implementation="org.c3lang.intellij.index.StructMemberDeclarationIndex"/>
+    <stubIndex implementation="org.c3lang.intellij.index.InterfaceImplementationIndex"/>
 
     <additionalLibraryRootsProvider implementation="org.c3lang.intellij.C3StdLibRootsProvider"/>
     <additionalLibraryRootsProvider implementation="org.c3lang.intellij.C3ProjectLibrariesRootsProvider"/>
@@ -67,6 +68,8 @@
     <!-- Quick Definition shows a whole function, not only the header a call resolves to. -->
     <lang.implementationTextSelectioner language="C3"
                                         implementationClass="org.c3lang.intellij.navigation.C3ImplementationTextSelectioner"/>
+    <!-- Go to Implementation on an interface or interface method finds the implementing types and methods. -->
+    <definitionsScopedSearch implementation="org.c3lang.intellij.navigation.C3ImplementationSearch"/>
     <lang.documentationProvider language="C3"
                                 implementationClass="org.c3lang.intellij.docs.C3DocumentationProvider" />
     <usageTypeProvider implementation="org.c3lang.intellij.findUsages.C3UsageTypeProvider" />
@@ -90,6 +93,9 @@
                             implementationClass="org.c3lang.intellij.completion.C3CompletionContributor" />
     <codeInsight.lineMarkerProvider language="C3"
                                     implementationClass="org.c3lang.intellij.C3LineMarkerProvider" />
+    <!-- "Is implemented" / "implements" gutter icons on interfaces, interface methods and their implementations. -->
+    <codeInsight.lineMarkerProvider language="C3"
+                                    implementationClass="org.c3lang.intellij.navigation.C3ImplementationLineMarkerProvider" />
     <codeInsight.parameterInfo language="C3"
                                implementationClass="org.c3lang.intellij.C3ParameterInfoHandler" />
     <consoleFilterProvider implementation="org.c3lang.intellij.C3ConsoleFilterProvider" />
@@ -160,6 +166,18 @@
                      enabledByDefault="true"
                      level="ERROR"
                      implementationClass="org.c3lang.intellij.intention.C3OptionalUnwrapInspection" />
+    <localInspection language="C3"
+                     displayName="Unresolved identifier"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="ERROR"
+                     implementationClass="org.c3lang.intellij.intention.C3UnresolvedIdentifierInspection" />
+    <localInspection language="C3"
+                     displayName="Format string arguments"
+                     groupName="C3"
+                     enabledByDefault="true"
+                     level="WARNING"
+                     implementationClass="org.c3lang.intellij.intention.C3FormatArgumentsInspection" />
     <localInspection language="C3"
                      displayName="Unresolved method or field"
                      groupName="C3"
